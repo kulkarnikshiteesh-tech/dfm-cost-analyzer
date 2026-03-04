@@ -31,11 +31,14 @@ const Index = () => {
         <aside className="w-full shrink-0 space-y-6 border-b border-border p-5 lg:w-80 lg:border-b-0 lg:border-r">
           <FileUploadZone onUploadSuccess={setUploadData} />
           <ProcessSelector />
-          <DFMFeedback
+                    <DFMFeedback
             volumeCubicMm={uploadData?.volume_cubic_mm}
             boundingBox={uploadData?.bounding_box_mm}
             material={material}
             quantity={quantity}
+            hasUndercuts={uploadData?.has_undercuts}
+            undercutSeverity={uploadData?.undercut_severity}
+            undercutMessage={uploadData?.undercut_message}
           />
         </aside>
 
