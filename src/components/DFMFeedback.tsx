@@ -46,22 +46,22 @@ function getDFMIssues(volumeCubicMm: number, boundingBox: { x: number; y: number
     issues.push({ type: "success" as const, text: `Part volume (${volumeCm3.toFixed(2)} cm³) is within efficient injection molding range` });
   }
 
-  // Slider detection based on geometry
-  const underCutRatio = (maxDim - minDim) / maxDim;
-  if (underCutRatio > 0.5) {
+  // Undercut detection based on height ratio
+  const heightRatio = minDim / maxDim;
+  if (heightRatio < 0.15) {
     issues.push({
-      type: "warning" as const,
-      text: `Likely undercuts detected — side-action sliders will be required in the mold, increasing tooling cost by ~20–35%`,
+      type: "success" as const,
+      text: `Shallow flat part — likely straight-pull mold, low risk of undercuts`,
     });
-  } else if (underCutRatio > 0.3) {
+  } else if (heightRatio < 0.4) {
     issues.push({
       type: "info" as const,
-      text: `Possible undercuts based on geometry — review part for side features; sliders may be needed`,
+      text: `Moderate depth (height ratio ${heightRatio.toFixed(2)}) — manually check for side holes or overhangs; sliders may be needed`,
     });
   } else {
     issues.push({
-      type: "success" as const,
-      text: `No significant undercuts detected — straight-pull mold likely sufficient, no sliders needed`,
+      type: "warning" as const,
+      text: `Deep or complex geometry (height ratio ${heightRatio.toFixed(2)}) — higher risk of undercuts; review for features requiring side-action sliders`,
     });
   }
 
@@ -188,4 +188,3 @@ const DFMFeedback = ({ volumeCubicMm, boundingBox, material = "ABS", quantity = 
 };
 
 export default DFMFeedback;
-
