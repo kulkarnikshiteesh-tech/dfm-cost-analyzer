@@ -93,6 +93,9 @@ const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
             <span className="text-sm font-medium text-primary">
               Processing 3D Model...
             </span>
+            <span className="mt-2 text-xs text-muted-foreground text-center leading-relaxed">
+              ⏳ Server may take up to 60 seconds to wake up on first use. Please wait...
+            </span>
           </>
         ) : (
           <>
