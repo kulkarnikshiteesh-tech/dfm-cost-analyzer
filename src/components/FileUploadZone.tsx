@@ -7,6 +7,9 @@ export interface UploadResponse {
   volume_cubic_mm: number;
   bounding_box_mm: { x: number; y: number; z: number };
   glb_url: string;
+  has_undercuts: boolean | null;
+  undercut_severity: string | null;
+  undercut_message: string | null;
 }
 
 interface FileUploadZoneProps {
