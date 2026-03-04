@@ -5,6 +5,9 @@ interface DFMFeedbackProps {
   boundingBox?: { x: number; y: number; z: number } | null;
   material?: string;
   quantity?: number;
+  hasUndercuts?: boolean | null;
+  undercutSeverity?: string | null;
+  undercutMessage?: string | null;
 }
 
 function getDFMIssues(volumeCubicMm: number, boundingBox: { x: number; y: number; z: number }) {
@@ -46,25 +49,6 @@ function getDFMIssues(volumeCubicMm: number, boundingBox: { x: number; y: number
     issues.push({ type: "success" as const, text: `Part volume (${volumeCm3.toFixed(2)} cm³) is within efficient injection molding range` });
   }
 
-  // Undercut detection based on height ratio
-  const heightRatio = minDim / maxDim;
-  if (heightRatio < 0.15) {
-    issues.push({
-      type: "success" as const,
-      text: `Shallow flat part — likely straight-pull mold, low risk of undercuts`,
-    });
-  } else if (heightRatio < 0.4) {
-    issues.push({
-      type: "info" as const,
-      text: `Moderate depth (height ratio ${heightRatio.toFixed(2)}) — manually check for side holes or overhangs; sliders may be needed`,
-    });
-  } else {
-    issues.push({
-      type: "warning" as const,
-      text: `Deep or complex geometry (height ratio ${heightRatio.toFixed(2)}) — higher risk of undercuts; review for features requiring side-action sliders`,
-    });
-  }
-
   return issues;
 }
 
@@ -83,7 +67,7 @@ function getMoldRecommendation(quantity: number) {
 }
 
 function getMachineSpec(volumeCubicMm: number, boundingBox: { x: number; y: number; z: number }) {
-  const { x, y, z } = boundingBox;
+  const { x, y } = boundingBox;
   const projectedArea = (x * y) / 100;
   const clampingForce = projectedArea * 0.5;
   const volumeCm3 = volumeCubicMm / 1000;
@@ -108,11 +92,31 @@ const typeIcons = {
   info: Info,
 };
 
-const DFMFeedback = ({ volumeCubicMm, boundingBox, material = "ABS", quantity = 1000 }: DFMFeedbackProps) => {
+const DFMFeedback = ({
+  volumeCubicMm,
+  boundingBox,
+  material = "ABS",
+  quantity = 1000,
+  hasUndercuts,
+  undercutSeverity,
+  undercutMessage,
+}: DFMFeedbackProps) => {
   const hasData = volumeCubicMm != null && boundingBox != null;
   const issues = hasData ? getDFMIssues(volumeCubicMm!, boundingBox!) : [];
   const moldRec = hasData ? getMoldRecommendation(quantity) : null;
   const machineSpec = hasData ? getMachineSpec(volumeCubicMm!, boundingBox!) : null;
+
+  // Undercut issue from API
+  const undercutIssue = undercutMessage
+    ? {
+        type: (undercutSeverity === "high"
+          ? "warning"
+          : undercutSeverity === "moderate"
+          ? "info"
+          : "success") as "warning" | "info" | "success",
+        text: undercutMessage,
+      }
+    : null;
 
   return (
     <div className="space-y-3">
@@ -155,6 +159,12 @@ const DFMFeedback = ({ volumeCubicMm, boundingBox, material = "ABS", quantity = 
               </li>
             );
           })}
+          {undercutIssue && (
+            <li className="flex items-start gap-2.5 rounded-lg bg-muted/30 px-3 py-2.5">
+              {(() => { const Icon = typeIcons[undercutIssue.type]; return <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${typeStyles[undercutIssue.type]}`} />; })()}
+              <span className="text-sm leading-snug text-foreground/80">{undercutIssue.text}</span>
+            </li>
+          )}
         </ul>
       )}
 
