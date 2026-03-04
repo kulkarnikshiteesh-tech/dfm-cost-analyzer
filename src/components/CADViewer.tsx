@@ -23,6 +23,17 @@ function GLBModel({ url }: { url: string }) {
   const { scene } = useGLTF(url, true);
 
   useEffect(() => {
+    // Color override: make imported models blue like the cube
+    scene.traverse((child: any) => {
+      if (child.isMesh) {
+        child.material = child.material.clone(); // Avoid mutating original
+        child.material.color.set("hsl(220, 80%, 56%)");
+        child.material.metalness = 0.1;
+        child.material.roughness = 0.3;
+      }
+    });
+
+    // Existing scale/center logic
     const box = new THREE.Box3().setFromObject(scene);
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
