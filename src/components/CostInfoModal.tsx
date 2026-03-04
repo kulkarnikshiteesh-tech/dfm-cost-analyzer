@@ -8,12 +8,12 @@ const CostInfoModal = () => {
     <>
       {/* Trigger button */}
       <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <Info size={13} />
-        How is this calculated?
-      </button>
+  onClick={() => setOpen(true)}
+  className="mt-2 inline-flex items-center gap-2 rounded-full border border-blue-500/60 bg-blue-500/5 px-3 py-1 text-xs font-medium text-blue-600 hover:bg-blue-500/10 hover:text-blue-700 shadow-sm transition-colors"
+>
+  <Info size={14} />
+  How is this calculated?
+</button>
 
       {/* Backdrop */}
       {open && (
