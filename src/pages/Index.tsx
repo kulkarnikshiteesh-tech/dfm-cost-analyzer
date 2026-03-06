@@ -6,14 +6,14 @@ import ProcessSelector from "@/components/ProcessSelector";
 import CADViewer from "@/components/CADViewer";
 import CostChart from "@/components/CostChart";
 
-const API_BASE = "https://threed-backend-4v3g.onrender.com";
-
 const Index = () => {
   const [uploadData, setUploadData] = useState<UploadResponse | null>(null);
   const [material, setMaterial] = useState("ABS");
   const [quantity, setQuantity] = useState(1000);
 
-  const glbUrl = uploadData?.glb_url ? `${API_BASE}${uploadData.glb_url}` : null;
+  // FIX: The backend now returns the full absolute URL. 
+  // We no longer need to prefix it with API_BASE.
+  const glbUrl = uploadData?.glb_url || null;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -29,23 +29,29 @@ const Index = () => {
 
       <div className="flex flex-1 flex-col lg:flex-row">
         <aside className="w-full shrink-0 space-y-6 border-b border-border p-5 lg:w-80 lg:border-b-0 lg:border-r">
+          {/* Ensure this component hits your Render URL */}
           <FileUploadZone onUploadSuccess={setUploadData} />
+          
           <ProcessSelector />
-                    <DFMFeedback
+          
+          <DFMFeedback
             volumeCubicMm={uploadData?.volume_cubic_mm}
             boundingBox={uploadData?.bounding_box_mm}
             material={material}
             quantity={quantity}
             hasUndercuts={uploadData?.has_undercuts}
-            undercutSeverity={uploadData?.undercut_severity}
+            // If backend sends 'optimal_axis', we can use it, else default to 'severity'
+            undercutSeverity={uploadData?.undercut_severity || "Medium"} 
             undercutMessage={uploadData?.undercut_message}
           />
         </aside>
 
         <div className="flex flex-1 flex-col">
           <div className="flex-1 p-4" style={{ minHeight: "400px" }}>
+            {/* The CADViewer will now receive a clean, working URL */}
             <CADViewer glbUrl={glbUrl} />
           </div>
+          
           <div className="border-t border-border p-5">
             <CostChart
               volumeCubicMm={uploadData?.volume_cubic_mm}
