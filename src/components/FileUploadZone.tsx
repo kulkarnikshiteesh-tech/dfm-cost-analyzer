@@ -1,47 +1,140 @@
-import { useState } from "react";
-import { Upload, Loader2, FileBox, X } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Upload, FileBox, X, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
-const FileUploadZone = ({ onUploadSuccess }: { onUploadSuccess?: (data: any) => void }) => {
-  const [isUploading, setIsUploading] = useState(false);
+interface FileUploadZoneProps {
+  onUploadSuccess?: (data: any) => void;
+}
+
+const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
   const [file, setFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const uploadFile = async (selectedFile: File) => {
     setIsUploading(true);
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
-      const res = await fetch("https://kshiteeshkk-dfm-precision-api.hf.space/upload", {
+
+      // Communicating with the Hugging Face API
+      const response = await fetch("https://kshiteeshkk-dfm-precision-api.hf.space/upload", {
         method: "POST",
         body: formData,
       });
-      const data = await res.json();
+
+      if (!response.ok) {
+        throw new Error(`Upload failed with status: ${response.status}`);
+      }
+
+      const data = await response.json();
       
-      // RESTORED: Passing real server data
+      // If the server returned an error (like the 'graph engine' crash), we catch it here
+      if (data.error) {
+        toast.error(`Server Error: ${data.error}`);
+        return;
+      }
+
+      // SUCCESS: Passing 'volume', 'glb_url', and 'mold_cost' to Index.tsx
       onUploadSuccess?.(data); 
       toast.success("Model processed successfully");
-    } catch (err) {
-      toast.error("Upload failed");
-    } finally { setIsUploading(false); }
+    } catch (error) {
+      console.error("Upload Error Details:", error);
+      toast.error("Upload failed. Check console for details.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped?.name.toLowerCase().endsWith(".step") || dropped?.name.toLowerCase().endsWith(".stp")) {
+      setFile(dropped);
+      uploadFile(dropped);
+    } else {
+      toast.error("Please upload a valid .step or .stp file");
+    }
+  }, []);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (selected) {
+      setFile(selected);
+      uploadFile(selected);
+    }
   };
 
   return (
     <div className="space-y-3">
-      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer bg-muted/30 border-border">
-        <input type="file" className="hidden" onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) { setFile(f); uploadFile(f); }
-        }} />
-        {isUploading ? <Loader2 className="animate-spin text-primary" /> : <Upload className="text-muted-foreground" />}
-        <span className="text-xs font-bold mt-2 uppercase">{isUploading ? "Analyzing..." : "Upload STEP"}</span>
-      </label>
-      {file && (
-        <div className="flex items-center gap-2 p-2 bg-primary/5 rounded-lg text-xs">
-          <FileBox className="h-3 w-3 text-primary" />
-          <span className="flex-1 truncate">{file.name}</span>
-          <X className="h-3 w-3 cursor-pointer" onClick={() => setFile(null)} />
-        </div>
-      )}
+      <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        Step 1: Upload Geometry
+      </h3>
+      <motion.label
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        className={`relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-all ${
+          isDragging ? "border-primary bg-primary/5 scale-[1.02]" : "border-border bg-muted/30 hover:border-primary/40 hover:bg-muted/50"
+        } ${isUploading ? "pointer-events-none opacity-60" : ""}`}
+      >
+        <input 
+          type="file" 
+          accept=".step,.stp" 
+          onChange={handleFileSelect} 
+          className="sr-only" 
+          disabled={isUploading} 
+        />
+        {isUploading ? (
+          <>
+            <Loader2 className="mb-3 h-8 w-8 animate-spin text-primary" />
+            <span className="text-sm font-bold text-primary animate-pulse italic">
+              Analyzing DFM...
+            </span>
+          </>
+        ) : (
+          <>
+            <div className="mb-3 rounded-full bg-background p-3 shadow-sm">
+              <Upload className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <span className="text-sm font-bold tracking-tight">Drop .step here</span>
+            <span className="text-[10px] text-muted-foreground mt-1 uppercase font-medium">
+              or click to browse
+            </span>
+          </>
+        )}
+      </motion.label>
+
+      <AnimatePresence>
+        {file && !isUploading && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-primary/10">
+              <FileBox className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex flex-1 flex-col overflow-hidden">
+              <span className="truncate text-xs font-bold uppercase tracking-tight">
+                {file.name}
+              </span>
+              <span className="text-[9px] text-muted-foreground uppercase">
+                Ready for analysis
+              </span>
+            </div>
+            <button 
+              onClick={() => setFile(null)} 
+              className="rounded-full p-1 hover:bg-background transition-colors"
+            >
+              <X className="h-4 w-4 text-muted-foreground hover:text-red-500" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
