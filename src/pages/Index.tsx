@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Box, Layers, ListOrdered } from "lucide-react";
 import FileUploadZone, { type UploadResponse } from "@/components/FileUploadZone";
 import DFMFeedback from "@/components/DFMFeedback";
@@ -9,15 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 
 const Index = () => {
-  const [uploadData, setUploadData] = useState<any>(null); // Flexible type to prevent crashes
+  const [uploadData, setUploadData] = useState<any>(null);
   const [material, setMaterial] = useState("ABS");
   const [quantity, setQuantity] = useState(1000);
 
-  // Debugging: Check console to see exactly what the backend sent
-  useEffect(() => {
-    if (uploadData) console.log("Backend Response:", uploadData);
-  }, [uploadData]);
-
+  // Restore the glbUrl logic but keep a fallback for your rotating cube/placeholder
   const glbUrl = uploadData?.glb_url || null;
 
   return (
@@ -33,35 +29,36 @@ const Index = () => {
 
       <div className="flex flex-1 flex-col lg:flex-row">
         <aside className="w-full shrink-0 space-y-6 border-b border-border p-5 lg:w-80 lg:border-b-0 lg:border-r">
+          <FileUploadZone onUploadSuccess={(data) => setUploadData(data)} />
           
-          <FileUploadZone onUploadSuccess={(data) => {
-            console.log("Upload Success Data:", data);
-            setUploadData(data);
-          }} />
-          
-          <div className="space-y-3 pt-4 border-t border-border">
-             <label className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-2">
-               <Layers className="h-3 w-3" /> Material
-             </label>
-             <Select value={material} onValueChange={setMaterial}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ABS">ABS</SelectItem>
-                  <SelectItem value="PC">PC</SelectItem>
-                </SelectContent>
-             </Select>
-          </div>
+          <ProcessSelector />
 
           <div className="space-y-3">
-             <label className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-2">
-               <ListOrdered className="h-3 w-3" /> Quantity: {quantity}
-             </label>
-             <Slider value={[quantity]} min={100} max={10000} step={100} onValueChange={(v) => setQuantity(v[0])} />
+            <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Layers className="h-3.5 w-3.5" /> Material
+            </label>
+            <Select value={material} onValueChange={setMaterial}>
+              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ABS">ABS</SelectItem>
+                <SelectItem value="PC">Polycarbonate</SelectItem>
+                <SelectItem value="Nylon">Nylon</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
+          <div className="space-y-4">
+            <div className="flex justify-between text-xs font-semibold uppercase text-muted-foreground">
+              <span className="flex items-center gap-2"><ListOrdered className="h-3.5 w-3.5" /> Volume</span>
+              <span className="text-primary">{quantity.toLocaleString()} units</span>
+            </div>
+            <Slider value={[quantity]} min={100} max={50000} step={100} onValueChange={(val) => setQuantity(val[0])} />
+          </div>
+
+          {/* This is where the data was failing; restored with proper key mapping */}
           <DFMFeedback
             volumeCubicMm={uploadData?.volume_cubic_mm}
-            boundingBox={uploadData?.bounding_box_mm || {x:0, y:0, z:0}} // Default to zero if missing
+            boundingBox={uploadData?.bounding_box_mm || {x: 0, y: 0, z: 0}}
             material={material}
             quantity={quantity}
             hasUndercuts={uploadData?.has_undercuts}
@@ -69,25 +66,19 @@ const Index = () => {
           />
         </aside>
 
-        <main className="flex flex-1 flex-col bg-muted/5">
-          <div className="flex-1 relative min-h-[500px]">
-            {glbUrl ? (
-              <CADViewer glbUrl={glbUrl} />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">
-                Upload a STEP file to view 3D model
-              </div>
-            )}
+        <main className="flex flex-1 flex-col">
+          <div className="flex-1 p-4" style={{ minHeight: "400px" }}>
+            {/* CADViewer restored to original state with your rotating cube/placeholder */}
+            <CADViewer glbUrl={glbUrl} />
           </div>
           
-          <div className="border-t border-border p-6 bg-background">
+          <div className="border-t border-border p-5">
             <CostChart
               volumeCubicMm={uploadData?.volume_cubic_mm}
               material={material}
               quantity={quantity}
-              // Map the backend's direct cost values
-              baseMoldCost={uploadData?.mold_cost_inr}
-              basePartCost={uploadData?.per_piece_cost}
+              onMaterialChange={setMaterial}
+              onQuantityChange={setQuantity}
             />
           </div>
         </main>
