@@ -6,23 +6,33 @@ const FileUploadZone = ({ onUploadSuccess }: { onUploadSuccess?: (data: any) => 
   const [isUploading, setIsUploading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
 
-  const uploadFile = async (selectedFile: File) => {
+ const uploadFile = async (selectedFile: File) => {
     setIsUploading(true);
     try {
+      // 1. WE STILL TRIGGER THE ACTUAL UPLOAD (to check the Network tab)
       const formData = new FormData();
       formData.append("file", selectedFile);
       const res = await fetch("https://kshiteeshkk-dfm-precision-api.hf.space/upload", {
         method: "POST",
         body: formData,
       });
-      if (!res.ok) throw new Error("API Failure");
-      const data = await res.json();
-      
-      // SYNC CHECK: Passes 'volume', 'has_undercuts', 'mold_cost'
-      onUploadSuccess?.(data); 
-      toast.success("Model processed successfully");
+      const serverData = await res.json();
+      console.log("ACTUAL SERVER RESPONSE:", serverData);
+
+      // 2. EMERGENCY BYPASS: We send FAKE data to the sidebar to see if it works
+      const fakeData = {
+        volume: 20933.34,
+        has_undercuts: false,
+        undercut_message: "Optimal Pull: X Axis. Straight-pull compatible.",
+        mold_cost: 38500.00,
+        part_cost: 17.50,
+        glb_url: serverData.glb_url || null // We try to keep the 3D model if it worked
+      };
+
+      onUploadSuccess?.(fakeData); 
+      toast.success("DIAGNOSTIC: Hardcoded data loaded!");
     } catch (err) {
-      toast.error("Upload failed");
+      toast.error("Diagnostic Failed");
     } finally {
       setIsUploading(false);
     }
