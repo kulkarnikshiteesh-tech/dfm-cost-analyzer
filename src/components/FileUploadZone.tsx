@@ -27,7 +27,7 @@ const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      const response = await fetch("https://threed-backend-4v3g.onrender.com/upload", {
+      const response = await fetch("https://kshiteeshkk-dfm-precision-api.hf.space/upload", {
         method: "POST",
         body: formData,
       });
