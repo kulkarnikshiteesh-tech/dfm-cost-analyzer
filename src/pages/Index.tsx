@@ -24,7 +24,10 @@ const Index = () => {
 
       <div className="flex flex-1 flex-col lg:flex-row">
         <aside className="w-full shrink-0 space-y-6 border-r p-5 lg:w-80 overflow-y-auto">
-          <FileUploadZone onUploadSuccess={(res) => setData(res)} />
+          <FileUploadZone onUploadSuccess={(res) => {
+            console.log("Data Received:", res); // F12 to verify
+            setData(res);
+          }} />
           <ProcessSelector />
           
           <div className="space-y-3">
@@ -58,6 +61,7 @@ const Index = () => {
 
         <main className="flex flex-1 flex-col relative">
           <div className="flex-1 p-4" style={{ minHeight: "450px" }}>
+            {/* Cube rotates until data?.glb_url is populated */}
             <CADViewer glbUrl={data?.glb_url || null} />
           </div>
           <div className="border-t p-5 bg-background">
