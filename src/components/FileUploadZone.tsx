@@ -3,13 +3,20 @@ import { Upload, FileBox, X, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
+// Updated to match the high-precision backend response structure
 export interface UploadResponse {
   volume_cubic_mm: number;
-  bounding_box_mm: { x: number; y: number; z: number };
   glb_url: string;
-  has_undercuts: boolean | null;
-  undercut_severity: string | null;
-  undercut_message: string | null;
+  has_undercuts: boolean;
+  optimal_axis: string;
+  undercut_message: string;
+  mold_cost_inr: number;
+  per_piece_cost: number;
+  wall_thickness_ok: boolean;
+  draft_angle_ok: boolean;
+  fits_mold_ok: boolean;
+  // This helps keep compatibility if other components still look for 'analysis'
+  analysis?: any; 
 }
 
 interface FileUploadZoneProps {
@@ -36,9 +43,27 @@ const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
         throw new Error(`Upload failed with status ${response.status}`);
       }
 
-      const data: UploadResponse = await response.json();
-      console.log('API response:', data);
-      onUploadSuccess?.(data);
+      const rawData = await response.json();
+      
+      // DATA NORMALIZATION:
+      // This maps the 'flat' backend response into the 'analysis' object 
+      // your other UI components are likely expecting.
+      const formattedData: UploadResponse = {
+        ...rawData,
+        analysis: {
+          volume_cubic_mm: rawData.volume_cubic_mm,
+          undercut_message: rawData.undercut_message,
+          mold_cost_inr: rawData.mold_cost_inr,
+          has_undercuts: rawData.has_undercuts,
+          per_piece_cost: rawData.per_piece_cost,
+          wall_thickness_ok: rawData.wall_thickness_ok,
+          draft_angle_ok: rawData.draft_angle_ok,
+          fits_mold_ok: rawData.fits_mold_ok
+        }
+      };
+      
+      console.log('Processed API response:', formattedData);
+      onUploadSuccess?.(formattedData);
       toast.success("Model processed successfully");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Upload failed";
@@ -52,7 +77,7 @@ const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
     e.preventDefault();
     setIsDragging(false);
     const dropped = e.dataTransfer.files[0];
-    if (dropped?.name.endsWith(".step") || dropped?.name.endsWith(".stp")) {
+    if (dropped?.name.toLowerCase().endsWith(".step") || dropped?.name.toLowerCase().endsWith(".stp")) {
       setFile(dropped);
       uploadFile(dropped);
     }
@@ -94,10 +119,10 @@ const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
           <>
             <Loader2 className="mb-2 h-6 w-6 animate-spin text-primary" />
             <span className="text-sm font-medium text-primary">
-              Processing 3D Model...
+              Analyzing Geometry...
             </span>
-            <span className="mt-2 text-xs text-muted-foreground text-center leading-relaxed">
-              ⏳ Server may take up to 60 seconds to wake up on first use. Please wait...
+            <span className="mt-2 text-xs text-muted-foreground text-center leading-relaxed max-w-[200px]">
+              Our 16GB Vector Engine is processing your STEP file. This may take a moment.
             </span>
           </>
         ) : (
