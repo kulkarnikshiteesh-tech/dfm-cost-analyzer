@@ -15,9 +15,10 @@ const FileUploadZone = ({ onUploadSuccess }: { onUploadSuccess?: (data: any) => 
         method: "POST",
         body: formData,
       });
-      if (!res.ok) throw new Error("API error");
+      if (!res.ok) throw new Error("API Failure");
       const data = await res.json();
       
+      // SYNC CHECK: Passes 'volume', 'has_undercuts', 'mold_cost'
       onUploadSuccess?.(data); 
       toast.success("Model processed successfully");
     } catch (err) {
@@ -29,7 +30,7 @@ const FileUploadZone = ({ onUploadSuccess }: { onUploadSuccess?: (data: any) => 
 
   return (
     <div className="space-y-3">
-      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer bg-muted/30 hover:bg-muted/50 border-border transition-colors">
+      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer bg-muted/30 hover:bg-muted/50 border-border">
         <input type="file" className="hidden" onChange={(e) => {
           const f = e.target.files?.[0];
           if (f) { setFile(f); uploadFile(f); }
