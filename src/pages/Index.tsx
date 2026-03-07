@@ -14,40 +14,44 @@ const Index = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="flex items-center gap-3 border-b px-6 py-3 font-bold">
-        <Box className="h-5 w-5 text-primary" /> CADCheck
+      <header className="flex items-center gap-3 border-b px-6 py-3 font-bold text-sm uppercase tracking-widest bg-background">
+        <Box className="h-5 w-5 text-primary" /> CADCheck Analysis Tool
       </header>
       <div className="flex flex-1 flex-col lg:flex-row">
         <aside className="w-full shrink-0 space-y-6 border-r p-5 lg:w-80 overflow-y-auto">
           <FileUploadZone onUploadSuccess={(res) => setData(res)} />
           
           <div className="space-y-3">
-            <label className="text-[10px] font-bold uppercase text-muted-foreground">Material</label>
+            <label className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Material</label>
             <Select value={material} onValueChange={setMaterial}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="ABS">ABS</SelectItem><SelectItem value="PC">PC</SelectItem></SelectContent>
+              <SelectTrigger className="font-bold"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ABS">ABS (General Purpose)</SelectItem>
+                <SelectItem value="PC">PC (Polycarbonate)</SelectItem>
+              </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-4">
-            <div className="flex justify-between text-[10px] font-bold uppercase text-muted-foreground">
+            <div className="flex justify-between text-[10px] font-black uppercase text-muted-foreground tracking-widest">
               <span>Quantity</span><span className="text-primary font-bold">{quantity}</span>
             </div>
             <Slider value={[quantity]} min={100} max={10000} step={100} onValueChange={(v) => setQuantity(v[0])} />
           </div>
 
           <DFMFeedback
-            volumeCubicMm={data?.volume} // Syncs with 'volume' from main.py
+            volumeCubicMm={data?.volume}
             hasUndercuts={data?.has_undercuts}
             undercutMessage={data?.undercut_message}
             material={material}
             quantity={quantity}
-            boundingBox={{x:0, y:0, z:0}}
+            boundingBox={{x: 0, y: 0, z: 0}}
           />
         </aside>
 
-        <main className="flex flex-1 flex-col relative">
+        <main className="flex flex-1 flex-col relative bg-muted/5">
           <div className="flex-1 p-4 min-h-[450px]">
+            {/* The rotating cube logic inside CADViewer is controlled by glbUrl */}
             <CADViewer glbUrl={data?.glb_url || null} />
           </div>
           <div className="border-t p-5 bg-background">
@@ -55,8 +59,8 @@ const Index = () => {
               volumeCubicMm={data?.volume}
               material={material}
               quantity={quantity}
-              baseMoldCost={data?.mold_cost} // Syncs with 'mold_cost' from main.py
-              basePartCost={data?.part_cost} // Syncs with 'part_cost' from main.py
+              baseMoldCost={data?.mold_cost}
+              basePartCost={data?.part_cost}
             />
           </div>
         </main>
