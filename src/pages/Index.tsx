@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Box, Layers, ListOrdered } from "lucide-react";
 import FileUploadZone, { type UploadResponse } from "@/components/FileUploadZone";
 import DFMFeedback from "@/components/DFMFeedback";
@@ -9,9 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 
 const Index = () => {
-  const [uploadData, setUploadData] = useState<UploadResponse | null>(null);
+  const [uploadData, setUploadData] = useState<any>(null); // Flexible type to prevent crashes
   const [material, setMaterial] = useState("ABS");
   const [quantity, setQuantity] = useState(1000);
+
+  // Debugging: Check console to see exactly what the backend sent
+  useEffect(() => {
+    if (uploadData) console.log("Backend Response:", uploadData);
+  }, [uploadData]);
 
   const glbUrl = uploadData?.glb_url || null;
 
@@ -24,85 +29,68 @@ const Index = () => {
           </div>
           <span className="text-lg font-semibold tracking-tight">CADCheck</span>
         </div>
-        <span className="text-sm text-muted-foreground">DFM Analysis Tool</span>
       </header>
 
       <div className="flex flex-1 flex-col lg:flex-row">
-        <aside className="w-full shrink-0 space-y-6 border-b border-border p-5 lg:w-80 lg:border-b-0 lg:border-r overflow-y-auto max-h-[calc(100vh-60px)]">
+        <aside className="w-full shrink-0 space-y-6 border-b border-border p-5 lg:w-80 lg:border-b-0 lg:border-r">
           
-          <FileUploadZone onUploadSuccess={setUploadData} />
+          <FileUploadZone onUploadSuccess={(data) => {
+            console.log("Upload Success Data:", data);
+            setUploadData(data);
+          }} />
           
-          <ProcessSelector />
-
-          {/* RESTORED: Material Selection */}
-          <div className="space-y-3">
-            <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Layers className="h-3.5 w-3.5" /> Material Selection
-            </label>
-            <Select value={material} onValueChange={setMaterial}>
-              <SelectTrigger className="w-full bg-background">
-                <SelectValue placeholder="Select Material" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ABS">ABS (General Purpose)</SelectItem>
-                <SelectItem value="PC">Polycarbonate (High Strength)</SelectItem>
-                <SelectItem value="Nylon">Nylon 6 (Wear Resistant)</SelectItem>
-                <SelectItem value="PP">Polypropylene (Chemical Resistant)</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="space-y-3 pt-4 border-t border-border">
+             <label className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-2">
+               <Layers className="h-3 w-3" /> Material
+             </label>
+             <Select value={material} onValueChange={setMaterial}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ABS">ABS</SelectItem>
+                  <SelectItem value="PC">PC</SelectItem>
+                </SelectContent>
+             </Select>
           </div>
 
-          {/* RESTORED: Quantity Slider */}
-          <div className="space-y-4">
-            <div className="flex justify-between">
-              <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <ListOrdered className="h-3.5 w-3.5" /> Production Volume
-              </label>
-              <span className="text-xs font-bold text-primary">{quantity.toLocaleString()} units</span>
-            </div>
-            <Slider 
-              value={[quantity]} 
-              min={100} 
-              max={50000} 
-              step={100} 
-              onValueChange={(val) => setQuantity(val[0])}
-              className="py-2"
-            />
+          <div className="space-y-3">
+             <label className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-2">
+               <ListOrdered className="h-3 w-3" /> Quantity: {quantity}
+             </label>
+             <Slider value={[quantity]} min={100} max={10000} step={100} onValueChange={(v) => setQuantity(v[0])} />
           </div>
 
           <DFMFeedback
             volumeCubicMm={uploadData?.volume_cubic_mm}
-            boundingBox={uploadData?.bounding_box_mm}
+            boundingBox={uploadData?.bounding_box_mm || {x:0, y:0, z:0}} // Default to zero if missing
             material={material}
             quantity={quantity}
             hasUndercuts={uploadData?.has_undercuts}
-            undercutSeverity={uploadData?.has_undercuts ? "High" : "None"} 
             undercutMessage={uploadData?.undercut_message}
           />
         </aside>
 
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex-1 bg-muted/10 relative" style={{ minHeight: "450px" }}>
-            <div className="absolute top-4 left-4 z-10">
-               <div className="flex items-center gap-2 rounded-full bg-background/80 px-3 py-1 text-[10px] font-medium backdrop-blur-sm border border-border">
-                  <div className={`h-2 w-2 rounded-full ${glbUrl ? 'bg-green-500' : 'bg-slate-300'}`} />
-                  {glbUrl ? "3D Preview Active" : "Waiting for Upload"}
-               </div>
-            </div>
-            <CADViewer glbUrl={glbUrl} />
+        <main className="flex flex-1 flex-col bg-muted/5">
+          <div className="flex-1 relative min-h-[500px]">
+            {glbUrl ? (
+              <CADViewer glbUrl={glbUrl} />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground text-sm">
+                Upload a STEP file to view 3D model
+              </div>
+            )}
           </div>
           
-          <div className="border-t border-border bg-background p-5">
+          <div className="border-t border-border p-6 bg-background">
             <CostChart
               volumeCubicMm={uploadData?.volume_cubic_mm}
-              boundingBox={uploadData?.bounding_box_mm}
               material={material}
               quantity={quantity}
-              onMaterialChange={setMaterial}
-              onQuantityChange={setQuantity}
+              // Map the backend's direct cost values
+              baseMoldCost={uploadData?.mold_cost_inr}
+              basePartCost={uploadData?.per_piece_cost}
             />
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );
