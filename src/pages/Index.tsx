@@ -1,3 +1,5 @@
+// This line is now correct once you add 'export default' to the component file
+import FileUploadZone from "@/components/FileUploadZone";
 import { useState } from "react";
 import { Box, Layers, ListOrdered, ChevronRight } from "lucide-react";
 import FileUploadZone from "@/components/FileUploadZone";
