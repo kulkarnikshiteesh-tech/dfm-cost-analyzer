@@ -13,8 +13,10 @@ interface DFMFeedbackProps {
 function getDFMIssues(volumeCubicMm: number, boundingBox: { x: number; y: number; z: number }) {
   const issues = [];
   const { x, y, z } = boundingBox;
-  const maxDim = Math.max(x, y, z);
-  const minDim = Math.min(x, y, z);
+  
+  // Use real dimensions if available, otherwise estimate based on volume cube root
+  const maxDim = x > 0 ? Math.max(x, y, z) : Math.pow(volumeCubicMm, 1/3) * 2;
+  const minDim = x > 0 ? Math.min(x, y, z) : Math.pow(volumeCubicMm, 1/3);
   const wallThicknessEstimate = minDim / 10;
 
   if (wallThicknessEstimate < 1.2) {
@@ -29,46 +31,28 @@ function getDFMIssues(volumeCubicMm: number, boundingBox: { x: number; y: number
     issues.push({ type: "success" as const, text: `Part fits within standard mold dimensions` });
   }
 
-  const aspectRatio = maxDim / minDim;
-  if (aspectRatio > 10) {
-    issues.push({ type: "warning" as const, text: `High aspect ratio (${aspectRatio.toFixed(1)}:1) — risk of warpage and fill issues` });
-  }
-
-  if (wallThicknessEstimate < 2) {
-    issues.push({ type: "info" as const, text: `Add 1–3° draft angle on all vertical faces for easy ejection` });
-  } else {
-    issues.push({ type: "success" as const, text: `Draft angle likely adequate based on part geometry` });
-  }
-
   const volumeCm3 = volumeCubicMm / 1000;
   if (volumeCm3 < 0.5) {
-    issues.push({ type: "info" as const, text: `Very small part (${volumeCm3.toFixed(2)} cm³) — consider multi-cavity mold to improve efficiency` });
+    issues.push({ type: "info" as const, text: `Very small part (${volumeCm3.toFixed(2)} cm³) — consider multi-cavity mold` });
   } else if (volumeCm3 > 500) {
     issues.push({ type: "warning" as const, text: `Large part volume (${volumeCm3.toFixed(0)} cm³) — long cycle times expected` });
   } else {
-    issues.push({ type: "success" as const, text: `Part volume (${volumeCm3.toFixed(2)} cm³) is within efficient injection molding range` });
+    issues.push({ type: "success" as const, text: `Part volume is within efficient injection molding range` });
   }
 
   return issues;
 }
 
 function getMoldRecommendation(quantity: number) {
-  if (quantity <= 500) {
-    return { type: "info" as const, text: `Aluminium soft mold recommended — suitable for up to ~500 shots` };
-  } else if (quantity <= 2000) {
-    return { type: "info" as const, text: `Zinc alloy soft mold recommended — suitable for up to ~2,000 shots` };
-  } else if (quantity <= 5000) {
-    return { type: "info" as const, text: `Mild steel semi-soft mold recommended — suitable for up to ~5,000 shots` };
-  } else if (quantity <= 50000) {
-    return { type: "info" as const, text: `P20 steel semi-hard mold recommended — suitable for up to ~500,000 shots` };
-  } else {
-    return { type: "success" as const, text: `H13 hard steel mold recommended — suitable for 500,000+ shots` };
-  }
+  if (quantity <= 500) return { type: "info" as const, text: `Aluminium soft mold recommended (<500 shots)` };
+  if (quantity <= 5000) return { type: "info" as const, text: `Mild steel semi-soft mold recommended (<5,000 shots)` };
+  return { type: "success" as const, text: `H13 hard steel mold recommended for high volume` };
 }
 
 function getMachineSpec(volumeCubicMm: number, boundingBox: { x: number; y: number; z: number }) {
   const { x, y } = boundingBox;
-  const projectedArea = (x * y) / 100;
+  // If no bounding box, estimate projected area from volume
+  const projectedArea = (x > 0 && y > 0) ? (x * y) / 100 : (Math.pow(volumeCubicMm, 2/3) / 10);
   const clampingForce = projectedArea * 0.5;
   const volumeCm3 = volumeCubicMm / 1000;
   let tonnage = Math.max(50, Math.ceil(clampingForce / 10) * 10);
@@ -76,14 +60,14 @@ function getMachineSpec(volumeCubicMm: number, boundingBox: { x: number; y: numb
   return {
     tonnage,
     shotSize: `${(volumeCm3 * 1.15).toFixed(1)} cm³`,
-    screwDia: tonnage <= 100 ? "30–40mm" : tonnage <= 200 ? "40–50mm" : "50–70mm",
+    screwDia: tonnage <= 150 ? "30–45mm" : "50–70mm",
   };
 }
 
 const typeStyles = {
-  success: "text-success",
-  warning: "text-warning",
-  info: "text-primary",
+  success: "text-green-500",
+  warning: "text-orange-500",
+  info: "text-blue-500",
 };
 
 const typeIcons = {
@@ -101,19 +85,18 @@ const DFMFeedback = ({
   undercutSeverity,
   undercutMessage,
 }: DFMFeedbackProps) => {
-  const hasData = volumeCubicMm != null && boundingBox != null;
-  const issues = hasData ? getDFMIssues(volumeCubicMm!, boundingBox!) : [];
-  const moldRec = hasData ? getMoldRecommendation(quantity) : null;
-  const machineSpec = hasData ? getMachineSpec(volumeCubicMm!, boundingBox!) : null;
+  
+  // KEY CHANGE: Component now activates if volume exists, even without boundingBox
+  const hasData = !!volumeCubicMm;
+  const safeBoundingBox = boundingBox || { x: 0, y: 0, z: 0 };
 
-  // Undercut issue from API
+  const issues = hasData ? getDFMIssues(volumeCubicMm!, safeBoundingBox) : [];
+  const moldRec = hasData ? getMoldRecommendation(quantity) : null;
+  const machineSpec = hasData ? getMachineSpec(volumeCubicMm!, safeBoundingBox) : null;
+
   const undercutIssue = undercutMessage
     ? {
-        type: (undercutSeverity === "high"
-          ? "warning"
-          : undercutSeverity === "moderate"
-          ? "info"
-          : "success") as "warning" | "info" | "success",
+        type: (hasUndercuts ? "warning" : "success") as "warning" | "success",
         text: undercutMessage,
       }
     : null;
@@ -124,72 +107,73 @@ const DFMFeedback = ({
         DFM Feedback
       </h3>
 
-      {hasData && (
-        <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
-          <div className="flex items-center gap-2.5">
-            <Ruler className="h-4 w-4 shrink-0 text-primary" />
-            <span className="text-sm text-foreground/80">
-              Volume: <span className="font-semibold">{volumeCubicMm!.toFixed(2)} mm³</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <Info className="h-4 w-4 shrink-0 text-primary" />
-            <span className="text-sm text-foreground/80">
-              Bounding box:{" "}
-              <span className="font-semibold">
-                {boundingBox!.x.toFixed(1)} × {boundingBox!.y.toFixed(1)} × {boundingBox!.z.toFixed(1)} mm
-              </span>
-            </span>
-          </div>
-        </div>
-      )}
-
-      {!hasData && (
+      {!hasData ? (
         <p className="text-sm text-muted-foreground">Upload a STEP file to see DFM analysis.</p>
-      )}
-
-      {issues.length > 0 && (
-        <ul className="space-y-2">
-          {issues.map((item, i) => {
-            const Icon = typeIcons[item.type];
-            return (
-              <li key={i} className="flex items-start gap-2.5 rounded-lg bg-muted/30 px-3 py-2.5">
-                <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${typeStyles[item.type]}`} />
-                <span className="text-sm leading-snug text-foreground/80">{item.text}</span>
-              </li>
-            );
-          })}
-          {undercutIssue && (
-            <li className="flex items-start gap-2.5 rounded-lg bg-muted/30 px-3 py-2.5">
-              {(() => { const Icon = typeIcons[undercutIssue.type]; return <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${typeStyles[undercutIssue.type]}`} />; })()}
-              <span className="text-sm leading-snug text-foreground/80">{undercutIssue.text}</span>
-            </li>
-          )}
-        </ul>
-      )}
-
-      {moldRec && (
-        <div className="space-y-1">
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Mold Type</h4>
-          <div className="flex items-start gap-2.5 rounded-lg bg-muted/30 px-3 py-2.5">
-            <Package className={`mt-0.5 h-4 w-4 shrink-0 ${typeStyles[moldRec.type]}`} />
-            <span className="text-sm leading-snug text-foreground/80">{moldRec.text}</span>
+      ) : (
+        <div className="space-y-4">
+          {/* Dimensional Stats */}
+          <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+            <div className="flex items-center gap-2.5">
+              <Ruler className="h-4 w-4 shrink-0 text-primary" />
+              <span className="text-sm text-foreground/80">
+                Volume: <span className="font-semibold">{volumeCubicMm!.toLocaleString()} mm³</span>
+              </span>
+            </div>
+            {safeBoundingBox.x > 0 && (
+              <div className="flex items-center gap-2.5">
+                <Info className="h-4 w-4 shrink-0 text-primary" />
+                <span className="text-sm text-foreground/80">
+                  Bounding box: <span className="font-semibold">{safeBoundingBox.x.toFixed(1)} × {safeBoundingBox.y.toFixed(1)} × {safeBoundingBox.z.toFixed(1)} mm</span>
+                </span>
+              </div>
+            )}
           </div>
-        </div>
-      )}
 
-      {machineSpec && (
-        <div className="space-y-1">
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Recommended Machine</h4>
-          <div className="rounded-lg bg-muted/30 px-3 py-2.5 space-y-1">
-            <div className="flex items-center gap-2.5">
-              <Zap className="h-4 w-4 shrink-0 text-primary" />
-              <span className="text-sm text-foreground/80">Clamping force: <span className="font-semibold">{machineSpec.tonnage} Tonnes</span></span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <Wrench className="h-4 w-4 shrink-0 text-primary" />
-              <span className="text-sm text-foreground/80">Shot size: <span className="font-semibold">{machineSpec.shotSize}</span> | Screw: <span className="font-semibold">{machineSpec.screwDia}</span></span>
-            </div>
+          {/* Undercut & DFM Issues */}
+          <ul className="space-y-2">
+            {undercutIssue && (
+              <li className={`flex items-start gap-2.5 rounded-lg bg-muted/30 px-3 py-2.5 border-l-4 ${hasUndercuts ? 'border-orange-500' : 'border-green-500'}`}>
+                {(() => { const Icon = typeIcons[undercutIssue.type]; return <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${typeStyles[undercutIssue.type]}`} />; })()}
+                <span className="text-sm font-medium leading-snug text-foreground">{undercutIssue.text}</span>
+              </li>
+            )}
+            {issues.map((item, i) => {
+              const Icon = typeIcons[item.type];
+              return (
+                <li key={i} className="flex items-start gap-2.5 rounded-lg bg-muted/30 px-3 py-2.5">
+                  <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${typeStyles[item.type]}`} />
+                  <span className="text-sm leading-snug text-foreground/80">{item.text}</span>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Tooling & Machine info */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {moldRec && (
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-bold uppercase text-muted-foreground">Mold</h4>
+                <div className="flex items-start gap-2.5 rounded-lg bg-muted/30 px-3 py-2">
+                  <Package className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span className="text-xs text-foreground/80">{moldRec.text}</span>
+                </div>
+              </div>
+            )}
+            {machineSpec && (
+              <div className="space-y-1">
+                <h4 className="text-[10px] font-bold uppercase text-muted-foreground">Machine</h4>
+                <div className="rounded-lg bg-muted/30 px-3 py-2 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-3.5 w-3.5 text-amber-500" />
+                    <span className="text-xs font-bold">{machineSpec.tonnage}T Force</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Wrench className="h-3.5 w-3.5" />
+                    <span>Shot: {machineSpec.shotSize}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
