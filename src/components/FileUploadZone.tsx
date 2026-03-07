@@ -18,30 +18,30 @@ const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      // Communicating with the Hugging Face API
+      // Connecting to your functional Hugging Face API
       const response = await fetch("https://kshiteeshkk-dfm-precision-api.hf.space/upload", {
         method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error(`Upload failed with status: ${response.status}`);
+        throw new Error(`Server responded with ${response.status}`);
       }
 
       const data = await response.json();
       
-      // If the server returned an error (like the 'graph engine' crash), we catch it here
+      // Checking if the backend returned an internal processing error
       if (data.error) {
-        toast.error(`Server Error: ${data.error}`);
+        toast.error(`Analysis Error: ${data.error}`);
         return;
       }
 
-      // SUCCESS: Passing 'volume', 'glb_url', and 'mold_cost' to Index.tsx
+      // SUCCESS: Passing real 'volume', 'glb_url', and 'mold_cost' to the app
       onUploadSuccess?.(data); 
       toast.success("Model processed successfully");
     } catch (error) {
-      console.error("Upload Error Details:", error);
-      toast.error("Upload failed. Check console for details.");
+      console.error("Upload Error:", error);
+      toast.error("Upload failed. Ensure the backend is running.");
     } finally {
       setIsUploading(false);
     }
@@ -119,11 +119,11 @@ const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
               <FileBox className="h-4 w-4 text-primary" />
             </div>
             <div className="flex flex-1 flex-col overflow-hidden">
-              <span className="truncate text-xs font-bold uppercase tracking-tight">
+              <span className="truncate text-xs font-bold uppercase tracking-tight font-mono">
                 {file.name}
               </span>
-              <span className="text-[9px] text-muted-foreground uppercase">
-                Ready for analysis
+              <span className="text-[9px] text-muted-foreground uppercase font-semibold">
+                Verified File Ready
               </span>
             </div>
             <button 
