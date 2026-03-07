@@ -14,8 +14,8 @@ const Index = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="flex items-center gap-3 border-b px-6 py-3 font-bold text-sm uppercase tracking-widest bg-background">
-        <Box className="h-5 w-5 text-primary" /> CADCheck Analysis Tool
+      <header className="flex items-center gap-3 border-b px-6 py-3 font-black text-xs uppercase tracking-[0.2em]">
+        <Box className="h-5 w-5 text-primary" /> CADCheck Analysis System
       </header>
       <div className="flex flex-1 flex-col lg:flex-row">
         <aside className="w-full shrink-0 space-y-6 border-r p-5 lg:w-80 overflow-y-auto">
@@ -34,7 +34,7 @@ const Index = () => {
 
           <div className="space-y-4">
             <div className="flex justify-between text-[10px] font-black uppercase text-muted-foreground tracking-widest">
-              <span>Quantity</span><span className="text-primary font-bold">{quantity}</span>
+              <span>Quantity</span><span className="text-primary font-bold tabular-nums">{quantity}</span>
             </div>
             <Slider value={[quantity]} min={100} max={10000} step={100} onValueChange={(v) => setQuantity(v[0])} />
           </div>
@@ -51,7 +51,7 @@ const Index = () => {
 
         <main className="flex flex-1 flex-col relative bg-muted/5">
           <div className="flex-1 p-4 min-h-[450px]">
-            {/* The rotating cube logic inside CADViewer is controlled by glbUrl */}
+            {/* The CADViewer will show the model once glb_url is available */}
             <CADViewer glbUrl={data?.glb_url || null} />
           </div>
           <div className="border-t p-5 bg-background">
