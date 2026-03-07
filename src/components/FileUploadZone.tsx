@@ -15,10 +15,9 @@ const FileUploadZone = ({ onUploadSuccess }: { onUploadSuccess?: (data: any) => 
         method: "POST",
         body: formData,
       });
-      if (!res.ok) throw new Error("Upload Failed");
       const data = await res.json();
       
-      // Send flat data directly to Index.tsx
+      // SYNC CHECK: Sends flat data (no .analysis wrapper)
       onUploadSuccess?.(data); 
       toast.success("Model processed successfully");
     } catch (err) {
@@ -36,10 +35,12 @@ const FileUploadZone = ({ onUploadSuccess }: { onUploadSuccess?: (data: any) => 
           if (f) { setFile(f); uploadFile(f); }
         }} />
         {isUploading ? <Loader2 className="animate-spin text-primary" /> : <Upload className="text-muted-foreground" />}
-        <span className="text-xs mt-2">{isUploading ? "Analyzing..." : "Upload STEP"}</span>
+        <span className="text-xs font-bold mt-2 uppercase tracking-tighter">
+          {isUploading ? "Analyzing..." : "Upload STEP File"}
+        </span>
       </label>
       {file && (
-        <div className="flex items-center gap-2 p-2 bg-primary/5 rounded-lg text-xs font-medium">
+        <div className="flex items-center gap-2 p-2 bg-primary/5 rounded-lg text-[10px] font-bold uppercase">
           <FileBox className="h-3 w-3 text-primary" />
           <span className="flex-1 truncate">{file.name}</span>
           <X className="h-3 w-3 cursor-pointer" onClick={() => setFile(null)} />
