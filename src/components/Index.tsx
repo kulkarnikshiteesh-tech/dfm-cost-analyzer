@@ -25,13 +25,7 @@ const Index = () => {
           <span className="rounded bg-[#2a2a2e] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[#5a5a5e]">Beta</span>
         </div>
 
-        <div className="flex items-center gap-4 text-[10px] uppercase tracking-widest">
-          {!data
-            ? <span className="text-[#5a5a5e]">Upload a STEP file to begin</span>
-            : <div className="flex items-center gap-1.5">
-                <div className="h-1.5 w-1.5 rounded-full bg-[#6abf6a] animate-pulse" />
-                <span className="text-[#6abf6a]">Model analysed</span>
-              </div>
+        
           }
         </div>
 
