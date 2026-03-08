@@ -47,7 +47,7 @@ const Index = () => {
   undercutFaceCount={data?.undercut_face_count}   // ← add
   material={material}
   quantity={quantity}
-  bounding_box_mm={data?.bounding_box_mm ?? { x: 0, y: 0, z: 0 }}
+  boundingBox={data?.bounding_box_mm ?? null}
 />
         </aside>
 
