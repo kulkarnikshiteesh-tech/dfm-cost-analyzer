@@ -55,7 +55,7 @@ const Index = () => {
           </div>
           <div className="border-t p-5 bg-background">
             <CostChart
-              volumeCubicMm={data?.volume}
+              volumeCubicMm={data?.volume_cubic_mm}
               material={material}
               quantity={quantity}
               baseMoldCost={data?.mold_cost}
