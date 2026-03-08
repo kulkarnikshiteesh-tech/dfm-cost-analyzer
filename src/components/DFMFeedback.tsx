@@ -132,7 +132,7 @@ const DFMFeedback = ({
           {/* Undercut & DFM Issues */}
           <ul className="space-y-2">
             {undercutIssue && (
-              <li className={`flex items-start gap-2.5 rounded-lg bg-muted/30 px-3 py-2.5 border-l-4 ${hasUndercuts ? 'border-orange-500' : 'border-green-500'}`}>
+              <li className={`flex items-start gap-2.5 rounded-lg bg-muted/30 px-3 py-2.5 border-l-4 ${undercutSeverity === 'high' ? 'border-red-500' : hasUndercuts ? 'border-orange-500' : 'border-green-500'}`}>
                 {(() => { const Icon = typeIcons[undercutIssue.type]; return <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${typeStyles[undercutIssue.type]}`} />; })()}
                 <span className="text-sm font-medium leading-snug text-foreground">{undercutIssue.text}</span>
               </li>
