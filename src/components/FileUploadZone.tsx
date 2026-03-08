@@ -23,9 +23,7 @@ const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
         method: "POST",
         body: formData,
       });
-      const response = await fetch(API_URL, formData);
-const data = await response.json();
-console.log("API DATA:", data);  // ← ADD THIS
+      
 setAnalysis(data);
 
 
