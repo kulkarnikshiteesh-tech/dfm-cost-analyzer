@@ -150,15 +150,7 @@ const CADViewer = ({ glbUrl, onAnalysisUpdate }: CADViewerProps) => {
         <div className="h-1.5 w-1.5 rounded-full bg-[#6abf6a] animate-pulse" />
         <span className="text-[10px] font-semibold uppercase tracking-widest text-[#8a8a8e]">3D Preview</span>
       </div>
-     {/* No model yet — instruct user to upload */}
-     {!glbUrl && (
-      <div className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2">
-      <div className="rounded-xl border border-[#2a2a2e] bg-[#1a1a1c]/90 px-6 py-3 text-center backdrop-blur-sm">
-      <p className="text-xs font-semibold text-[#e8e6e1]">Upload a <span className="text-[#6a9fd8]">.STEP</span> file to begin analysis</p>
-      <p className="mt-1 text-[10px] text-[#5a5a5e]">Use the panel on the left</p>
-       </div>
-      </div>
-     )}
+     
       
       {/* Side face warning */}
       {sideWarning && (
