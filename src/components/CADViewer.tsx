@@ -1,10 +1,11 @@
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Environment, RoundedBox, useGLTF } from "@react-three/drei";
 import { useRef, Suspense, useEffect, useState, useCallback } from "react";
 import * as THREE from "three";
 import type { Mesh } from "three";
 
-// Spinning placeholder cube shown before any model is uploaded
+const BACKEND = "https://threed-backend-4v3g.onrender.com";
+
 function SpinningCube() {
   const meshRef = useRef<Mesh>(null);
   useFrame((_, delta) => {
@@ -20,30 +21,14 @@ function SpinningCube() {
   );
 }
 
-// Highlight face clicked by user for pull direction
-function FaceHighlight({ normal }: { normal: THREE.Vector3 | null }) {
-  if (!normal) return null;
-  const arrowDir = normal.clone().normalize();
-  const origin = new THREE.Vector3(0, 0, 0);
-  return (
-    <arrowHelper
-      args={[arrowDir, origin, 2.5, "#6abf6a", 0.4, 0.25]}
-    />
-  );
-}
-
-// The actual GLB model with face click detection
 function GLBModel({
   url,
   onFaceClick,
-  pullNormal,
 }: {
   url: string;
   onFaceClick: (normal: THREE.Vector3) => void;
-  pullNormal: THREE.Vector3 | null;
 }) {
   const { scene } = useGLTF(url, true);
-  const groupRef = useRef<THREE.Group>(null);
 
   useEffect(() => {
     scene.traverse((child: any) => {
@@ -54,7 +39,6 @@ function GLBModel({
         child.material.roughness = 0.35;
       }
     });
-
     const box = new THREE.Box3().setFromObject(scene);
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
@@ -76,105 +60,163 @@ function GLBModel({
     [onFaceClick]
   );
 
-  return (
-    <group ref={groupRef}>
-      <primitive object={scene} onClick={handleClick} />
-      <FaceHighlight normal={pullNormal} />
-    </group>
-  );
+  return <primitive object={scene} onClick={handleClick} />;
+}
+
+// Classify a face normal into top / bottom / side
+function classifyFace(normal: THREE.Vector3): "top" | "bottom" | "side" {
+  if (normal.z > 0.7) return "top";
+  if (normal.z < -0.7) return "bottom";
+  return "side";
 }
 
 interface CADViewerProps {
   glbUrl?: string | null;
-  onPullDirectionSet?: (normal: THREE.Vector3) => void;
+  onAnalysisUpdate?: (data: any) => void;
 }
 
-const CADViewer = ({ glbUrl, onPullDirectionSet }: CADViewerProps) => {
-  const [pullNormal, setPullNormal] = useState<THREE.Vector3 | null>(null);
-  const [showHint, setShowHint] = useState(false);
+const CADViewer = ({ glbUrl, onAnalysisUpdate }: CADViewerProps) => {
+  const [faceType, setFaceType] = useState<"top" | "bottom" | "side" | null>(null);
+  const [pullVector, setPullVector] = useState<{ x: number; y: number; z: number } | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [reanalysing, setReanalysing] = useState(false);
+  const [sideWarning, setSideWarning] = useState(false);
 
-  // Show hint when model first loads
+  // Reset when new model loads
   useEffect(() => {
-    if (glbUrl) {
-      setPullNormal(null);
-      setConfirmed(false);
-      setShowHint(true);
-      const t = setTimeout(() => setShowHint(false), 4000);
-      return () => clearTimeout(t);
-    }
+    setFaceType(null);
+    setPullVector(null);
+    setConfirmed(false);
+    setSideWarning(false);
   }, [glbUrl]);
 
-  const handleFaceClick = useCallback(
-    (normal: THREE.Vector3) => {
-      setPullNormal(normal);
-      setConfirmed(false);
-    },
-    []
-  );
-
-  const handleConfirm = () => {
-    if (pullNormal && onPullDirectionSet) {
-      onPullDirectionSet(pullNormal);
+  const handleFaceClick = useCallback((normal: THREE.Vector3) => {
+    if (confirmed) return; // locked after confirm
+    const type = classifyFace(normal);
+    if (type === "side") {
+      setSideWarning(true);
+      setTimeout(() => setSideWarning(false), 2500);
+      return;
     }
+    setSideWarning(false);
+    setFaceType(type);
+    setPullVector({ x: normal.x, y: normal.y, z: normal.z });
+  }, [confirmed]);
+
+  const handleConfirm = async () => {
+    if (!pullVector || !glbUrl || !onAnalysisUpdate) return;
     setConfirmed(true);
+    setReanalysing(true);
+
+    // Extract glb filename from URL to pass as reference
+    const glbFilename = glbUrl.split("/static/")[1];
+
+    try {
+      const res = await fetch(`${BACKEND}/reanalyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          glb_filename: glbFilename,
+          pull_direction: pullVector,
+        }),
+      });
+
+      if (res.ok) {
+        const newData = await res.json();
+        if (newData.glb_url && newData.glb_url.startsWith("/static/")) {
+          newData.glb_url = BACKEND + newData.glb_url;
+        }
+        onAnalysisUpdate(newData);
+      }
+    } catch (err) {
+      console.error("Reanalyze error:", err);
+    } finally {
+      setReanalysing(false);
+    }
   };
 
   const handleReset = () => {
-    setPullNormal(null);
+    setFaceType(null);
+    setPullVector(null);
     setConfirmed(false);
+    setSideWarning(false);
   };
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#141416]">
 
       {/* Top-left badge */}
-      <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-lg bg-[#1c1c1e]/90 px-3 py-1.5 backdrop-blur-sm border border-[#2e2e30]">
-        <div className="h-2 w-2 rounded-full bg-[#6abf6a] animate-pulse" />
+      <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-lg border border-[#2a2a2e] bg-[#1a1a1c]/90 px-3 py-1.5 backdrop-blur-sm">
+        <div className="h-1.5 w-1.5 rounded-full bg-[#6abf6a] animate-pulse" />
         <span className="text-[10px] font-semibold uppercase tracking-widest text-[#8a8a8e]">3D Preview</span>
       </div>
 
-      {/* Pull direction hint — fades in when model loads */}
-      {glbUrl && showHint && !pullNormal && (
-        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2 rounded-lg border border-[#3b6bca]/40 bg-[#1e3358]/90 px-4 py-2 backdrop-blur-sm transition-opacity">
-          <p className="text-[11px] font-semibold text-[#6a9fd8] text-center">
-            Click the <span className="text-[#e8e6e1]">top face</span> of your part to set pull direction
-          </p>
-        </div>
-      )}
-
-      {/* Pull direction panel — shows after click */}
-      {glbUrl && pullNormal && !confirmed && (
-        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2 rounded-xl border border-[#2e2e30] bg-[#1c1c1e]/95 px-5 py-3 backdrop-blur-sm shadow-xl">
-          <p className="text-[10px] uppercase tracking-widest text-[#8a8a8e] mb-2 text-center">Pull direction selected</p>
-          <div className="flex items-center gap-2 text-[11px] font-mono text-[#6abf6a] mb-3 justify-center">
-            <span>↑ {pullNormal.x.toFixed(2)}</span>
-            <span>→ {pullNormal.y.toFixed(2)}</span>
-            <span>↗ {pullNormal.z.toFixed(2)}</span>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleConfirm}
-              className="flex-1 rounded-lg bg-[#3b6bca] px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-[#4a7ad9] transition-colors"
-            >
-              Confirm
-            </button>
-            <button
-              onClick={handleReset}
-              className="flex-1 rounded-lg bg-[#2e2e30] px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#8a8a8e] hover:bg-[#3a3a3e] transition-colors"
-            >
-              Reset
-            </button>
+      {/* Instruction — shown when model loaded, not yet confirmed */}
+      {glbUrl && !confirmed && !faceType && (
+        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
+          <div className="rounded-xl border border-[#3b6bca]/50 bg-[#1a1a1c]/95 px-5 py-3 text-center shadow-xl backdrop-blur-sm">
+            <p className="text-xs font-semibold text-[#e8e6e1]">
+              Select the <span className="text-[#6a9fd8]">top</span> or <span className="text-[#6a9fd8]">bottom</span> surface of your model
+            </p>
+            <p className="mt-1 text-[10px] text-[#5a5a5e]">Click directly on the face</p>
           </div>
         </div>
       )}
 
-      {/* Confirmed state */}
-      {glbUrl && confirmed && (
-        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2 flex items-center gap-2 rounded-lg border border-[#2a4a2a] bg-[#1a2e1a]/90 px-4 py-2 backdrop-blur-sm">
-          <span className="text-[#6abf6a] text-xs">✓</span>
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-[#6abf6a]">Pull direction confirmed</span>
-          <button onClick={handleReset} className="ml-2 text-[9px] text-[#4a4a4e] hover:text-[#8a8a8e] underline">change</button>
+      {/* Side face warning */}
+      {sideWarning && (
+        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
+          <div className="rounded-xl border border-[#d4a017]/40 bg-[#1a1a1c]/95 px-5 py-3 text-center shadow-xl backdrop-blur-sm">
+            <p className="text-xs font-semibold text-[#d4a017]">That's a side face</p>
+            <p className="mt-1 text-[10px] text-[#8a8a8e]">Please click the top or bottom surface</p>
+          </div>
+        </div>
+      )}
+
+      {/* Face selected — confirm / reset */}
+      {glbUrl && faceType && !confirmed && (
+        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
+          <div className="rounded-xl border border-[#2a2a2e] bg-[#1a1a1c]/98 px-5 py-4 shadow-xl backdrop-blur-sm">
+            <p className="text-[10px] uppercase tracking-widest text-[#5a5a5e] text-center mb-1">Surface selected</p>
+            <p className="text-sm font-bold text-[#e8e6e1] text-center mb-3 capitalize">
+              {faceType === "top" ? "⬆ Top surface" : "⬇ Bottom surface"}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={handleConfirm}
+                className="flex-1 rounded-lg bg-[#3b6bca] px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-[#4a7ad9]"
+              >
+                Confirm & Reanalyse
+              </button>
+              <button
+                onClick={handleReset}
+                className="rounded-lg bg-[#2a2a2e] px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-[#8a8a8e] transition-colors hover:bg-[#333336]"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reanalysing spinner */}
+      {reanalysing && (
+        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
+          <div className="flex items-center gap-2.5 rounded-xl border border-[#2a2a2e] bg-[#1a1a1c]/98 px-5 py-3 shadow-xl backdrop-blur-sm">
+            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#3b6bca] border-t-transparent" />
+            <span className="text-[11px] font-semibold text-[#8a8a8e]">Reanalysing with your pull direction…</span>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmed */}
+      {confirmed && !reanalysing && (
+        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
+          <div className="flex items-center gap-2.5 rounded-xl border border-[#2a4a2a] bg-[#1a1a1c]/95 px-4 py-2.5 shadow-xl backdrop-blur-sm">
+            <span className="text-[#6abf6a] text-sm">✓</span>
+            <span className="text-[11px] font-semibold text-[#6abf6a] capitalize">{faceType} surface confirmed</span>
+            <button onClick={handleReset} className="ml-1 text-[9px] text-[#3a3a3e] underline hover:text-[#5a5a5e]">change</button>
+          </div>
         </div>
       )}
 
@@ -184,7 +226,7 @@ const CADViewer = ({ glbUrl, onPullDirectionSet }: CADViewerProps) => {
         <directionalLight position={[-4, -4, -4]} intensity={0.15} />
         <Suspense fallback={null}>
           {glbUrl
-            ? <GLBModel url={glbUrl} onFaceClick={handleFaceClick} pullNormal={pullNormal} />
+            ? <GLBModel url={glbUrl} onFaceClick={handleFaceClick} />
             : <SpinningCube />
           }
         </Suspense>
