@@ -27,6 +27,9 @@ const uploadFile = async (selectedFile: File) => {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     
     const data = await response.json();
+    if (data.glb_url && data.glb_url.startsWith("/static/")) {
+  data.glb_url = "https://threed-backend-4v3g.onrender.com" + data.glb_url;
+}
     console.log("API DATA:", data);
     
     setAnalysis(data);
