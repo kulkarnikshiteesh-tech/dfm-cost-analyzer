@@ -159,18 +159,7 @@ const CADViewer = ({ glbUrl, onAnalysisUpdate }: CADViewerProps) => {
        </div>
       </div>
      )}
-      {/* Instruction — shown when model loaded, not yet confirmed */}
-      {glbUrl && !confirmed && !faceType && (
-        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
-          <div className="rounded-xl border border-[#3b6bca]/50 bg-[#1a1a1c]/95 px-5 py-3 text-center shadow-xl backdrop-blur-sm">
-            <p className="text-xs font-semibold text-[#e8e6e1]">
-              Select the <span className="text-[#6a9fd8]">top</span> or <span className="text-[#6a9fd8]">bottom</span> surface of your model
-            </p>
-            <p className="mt-1 text-[10px] text-[#5a5a5e]">Click directly on the face</p>
-          </div>
-        </div>
-      )}
-
+      
       {/* Side face warning */}
       {sideWarning && (
         <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
