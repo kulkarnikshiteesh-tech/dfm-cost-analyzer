@@ -40,13 +40,15 @@ const Index = () => {
           </div>
 
           <DFMFeedback
-            volumeCubicMm={data?.volume_cubic_mm}
-            hasUndercuts={data?.has_undercuts}
-            undercutMessage={data?.undercut_message}
-            material={material}
-            quantity={quantity}
-            bounding_box_mm={data?.bounding_box_mm ?? { x: 0, y: 0, z: 0 }}
-          />
+  volumeCubicMm={data?.volume_cubic_mm}
+  hasUndercuts={data?.has_undercuts}
+  undercutMessage={data?.undercut_message}
+  undercutSeverity={data?.undercut_severity}      // ← add
+  undercutFaceCount={data?.undercut_face_count}   // ← add
+  material={material}
+  quantity={quantity}
+  bounding_box_mm={data?.bounding_box_mm ?? { x: 0, y: 0, z: 0 }}
+/>
         </aside>
 
         <main className="flex flex-1 flex-col relative bg-muted/5">
