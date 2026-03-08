@@ -12,17 +12,34 @@ const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  const uploadFile = async (selectedFile: File) => {
-    setIsUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
+  const [analysis, setAnalysis] = useState<any>(null);
+const uploadFile = async (selectedFile: File) => {
+  setIsUploading(true);
+  try {
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    
+    const response = await fetch(API_URL, {  // Your working backend URL
+      method: "POST",
+      body: formData,
+    });
+    
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    
+    const data = await response.json();
+    console.log("API DATA:", data);
+    
+    setAnalysis(data);
+    if (onUploadSuccess) onUploadSuccess(data);
+    
+  } catch (error) {
+    console.error("Upload Error:", error);
+    toast.error("Upload failed: " + error.message);
+  } finally {
+    setIsUploading(false);
+  }
+};
 
-      // Connecting to your functional Hugging Face API
-      const response = await fetch("https://threed-backend-4v3g.onrender.com/upload", {
-        method: "POST",
-        body: formData,
-      });
       
 setAnalysis(data);
 
