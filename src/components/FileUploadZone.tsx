@@ -64,15 +64,15 @@ const handleDrop = useCallback((e: React.DragEvent) => {
 
   return (
     <div className="space-y-3">
-      <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-        Step 1: Upload Geometry
-      </h3>
+      <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#4a4a4e]">
+  Upload Geometry
+</h3>
       <motion.label
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         className={`relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-all ${
-          isDragging ? "border-primary bg-primary/5 scale-[1.02]" : "border-border bg-muted/30 hover:border-primary/40 hover:bg-muted/50"
+  isDragging ? "border-[#3b6bca] bg-[#1e3358] scale-[1.02]" : "border-[#2a2a2e] bg-[#161618] hover:border-[#3b6bca]/40 hover:bg-[#1a1a1c]"
         } ${isUploading ? "pointer-events-none opacity-60" : ""}`}
       >
         <input 
