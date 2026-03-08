@@ -40,12 +40,12 @@ const Index = () => {
           </div>
 
           <DFMFeedback
-            volumeCubicMm={data?.volume}
+            volumeCubicMm={data?.volume_cubic_mm}
             hasUndercuts={data?.has_undercuts}
             undercutMessage={data?.undercut_message}
             material={material}
             quantity={quantity}
-            boundingBox={{x: 0, y: 0, z: 0}}
+            bounding_box_mm={{x: 0, y: 0, z: 0}}
           />
         </aside>
 
