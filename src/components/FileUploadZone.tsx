@@ -19,7 +19,7 @@ const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
       formData.append("file", selectedFile);
 
       // Connecting to your functional Hugging Face API
-      const response = await fetch("https://kshiteeshkk-dfm-precision-api.hf.space/upload", {
+      const response = await fetch("https://threed-backend-4v3g.onrender.com/upload", {
         method: "POST",
         body: formData,
       });
