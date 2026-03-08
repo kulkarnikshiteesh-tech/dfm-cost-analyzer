@@ -19,7 +19,7 @@ const uploadFile = async (selectedFile: File) => {
     const formData = new FormData();
     formData.append("file", selectedFile);
     
-    const response = await fetch(API_URL, {  // Your working backend URL
+    const response = await fetch("https://threed-backend-4v3g.onrender.com/upload", {  // Your working backend URL
       method: "POST",
       body: formData,
     });
