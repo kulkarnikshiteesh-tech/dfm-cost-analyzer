@@ -39,35 +39,7 @@ const uploadFile = async (selectedFile: File) => {
     setIsUploading(false);
   }
 };
-
-      
-setAnalysis(data);
-
-
-      if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      // Checking if the backend returned an internal processing error
-      if (data.error) {
-        toast.error(`Analysis Error: ${data.error}`);
-        return;
-      }
-
-      // SUCCESS: Passing real 'volume', 'glb_url', and 'mold_cost' to the app
-      onUploadSuccess?.(data); 
-      toast.success("Model processed successfully");
-    } catch (error) {
-      console.error("Upload Error:", error);
-      toast.error("Upload failed. Ensure the backend is running.");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
+const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const dropped = e.dataTransfer.files[0];
