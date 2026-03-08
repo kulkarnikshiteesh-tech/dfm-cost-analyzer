@@ -45,7 +45,7 @@ const Index = () => {
             undercutMessage={data?.undercut_message}
             material={material}
             quantity={quantity}
-            bounding_box_mm={{x: 0, y: 0, z: 0}}
+            bounding_box_mm={data?.bounding_box_mm ?? { x: 0, y: 0, z: 0 }}
           />
         </aside>
 
