@@ -73,25 +73,27 @@ function classifyFace(normal: THREE.Vector3): "top" | "bottom" | "side" {
 
 interface CADViewerProps {
   glbUrl?: string | null;
-  onAnalysisUpdate?: (data: any) => void;
+  pullSelectionMode?: boolean;  // true when wizard is on step 3
+  onPullConfirmed?: (pull: { x: number; y: number; z: number }) => void;
+  analysisComplete?: boolean;
 }
 
-const CADViewer = ({ glbUrl, onAnalysisUpdate }: CADViewerProps) => {
+const CADViewer = ({ glbUrl, pullSelectionMode = false, onPullConfirmed, analysisComplete = false }: CADViewerProps) => {
   const [faceType, setFaceType] = useState<"top" | "bottom" | "side" | null>(null);
   const [pullVector, setPullVector] = useState<{ x: number; y: number; z: number } | null>(null);
   const [confirmed, setConfirmed] = useState(false);
-  const [reanalysing, setReanalysing] = useState(false);
   const [sideWarning, setSideWarning] = useState(false);
 
+  // Reset face selection when model changes or pull mode toggled on
   useEffect(() => {
     setFaceType(null);
     setPullVector(null);
     setConfirmed(false);
     setSideWarning(false);
-  }, [glbUrl]);
+  }, [glbUrl, pullSelectionMode]);
 
   const handleFaceClick = useCallback((normal: THREE.Vector3) => {
-    if (confirmed) return;
+    if (!pullSelectionMode || confirmed) return;
     const type = classifyFace(normal);
     if (type === "side") {
       setSideWarning(true);
@@ -101,31 +103,12 @@ const CADViewer = ({ glbUrl, onAnalysisUpdate }: CADViewerProps) => {
     setSideWarning(false);
     setFaceType(type);
     setPullVector({ x: normal.x, y: normal.y, z: normal.z });
-  }, [confirmed]);
+  }, [pullSelectionMode, confirmed]);
 
-  const handleConfirm = async () => {
-    if (!pullVector || !glbUrl || !onAnalysisUpdate) return;
+  const handleConfirm = () => {
+    if (!pullVector || !onPullConfirmed) return;
     setConfirmed(true);
-    setReanalysing(true);
-    const glbFilename = glbUrl.split("/static/")[1];
-    try {
-      const res = await fetch(`${BACKEND}/reanalyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ glb_filename: glbFilename, pull_direction: pullVector }),
-      });
-      if (res.ok) {
-        const newData = await res.json();
-        if (newData.glb_url && newData.glb_url.startsWith("/static/")) {
-          newData.glb_url = BACKEND + newData.glb_url;
-        }
-        onAnalysisUpdate(newData);
-      }
-    } catch (err) {
-      console.error("Reanalyze error:", err);
-    } finally {
-      setReanalysing(false);
-    }
+    onPullConfirmed(pullVector);
   };
 
   const handleReset = () => {
@@ -144,6 +127,16 @@ const CADViewer = ({ glbUrl, onAnalysisUpdate }: CADViewerProps) => {
         <span className="text-[10px] font-semibold uppercase tracking-widest text-[#9a9a9e]">3D Preview</span>
       </div>
 
+      {/* Pull direction mode prompt — shown when step 3 active and no face selected yet */}
+      {pullSelectionMode && !faceType && !confirmed && glbUrl && (
+        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
+          <div className="rounded-xl border border-[#e0a020]/50 bg-white/95 px-5 py-3 text-center shadow-lg backdrop-blur-sm">
+            <p className="text-xs font-semibold text-[#c08010]">Click the top or bottom face</p>
+            <p className="mt-1 text-[10px] text-[#9a9a9e]">Set the mould pull direction</p>
+          </div>
+        </div>
+      )}
+
       {/* Side face warning */}
       {sideWarning && (
         <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
@@ -159,7 +152,7 @@ const CADViewer = ({ glbUrl, onAnalysisUpdate }: CADViewerProps) => {
         <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
           <div className="rounded-xl border border-[#e0deda] bg-white/98 px-5 py-4 shadow-lg backdrop-blur-sm">
             <p className="text-[10px] uppercase tracking-widest text-[#9a9a9e] text-center mb-1">Surface selected</p>
-            <p className="text-sm font-bold text-[#1a1a1c] text-center mb-3 capitalize">
+            <p className="text-sm font-bold text-[#1a1a1c] text-center mb-3">
               {faceType === "top" ? "⬆ Top surface" : "⬇ Bottom surface"}
             </p>
             <div className="flex gap-2">
@@ -167,7 +160,7 @@ const CADViewer = ({ glbUrl, onAnalysisUpdate }: CADViewerProps) => {
                 onClick={handleConfirm}
                 className="flex-1 rounded-lg bg-[#3b6bca] px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-white transition-colors hover:bg-[#4a7ad9]"
               >
-                Confirm & Reanalyse
+                Confirm & Analyse
               </button>
               <button
                 onClick={handleReset}
@@ -180,23 +173,23 @@ const CADViewer = ({ glbUrl, onAnalysisUpdate }: CADViewerProps) => {
         </div>
       )}
 
-      {/* Reanalysing spinner */}
-      {reanalysing && (
+      {/* Confirmed */}
+      {confirmed && !analysisComplete && (
         <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
           <div className="flex items-center gap-2.5 rounded-xl border border-[#e0deda] bg-white/98 px-5 py-3 shadow-lg backdrop-blur-sm">
             <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#3b6bca] border-t-transparent" />
-            <span className="text-[11px] font-semibold text-[#6a6a6e]">Reanalysing with your pull direction…</span>
+            <span className="text-[11px] font-semibold text-[#6a6a6e]">Running DFM analysis…</span>
           </div>
         </div>
       )}
 
-      {/* Confirmed */}
-      {confirmed && !reanalysing && (
+      {/* Analysis complete */}
+      {analysisComplete && confirmed && (
         <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
           <div className="flex items-center gap-2.5 rounded-xl border border-[#c8ecd0] bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur-sm">
             <span className="text-[#4caf72] text-sm">✓</span>
-            <span className="text-[11px] font-semibold text-[#4caf72] capitalize">{faceType} surface confirmed</span>
-            <button onClick={handleReset} className="ml-1 text-[9px] text-[#b0ada8] underline hover:text-[#6a6a6e]">change</button>
+            <span className="text-[11px] font-semibold text-[#4caf72]">Analysis complete</span>
+            <button onClick={handleReset} className="ml-1 text-[9px] text-[#b0ada8] underline hover:text-[#6a6a6e]">change direction</button>
           </div>
         </div>
       )}
