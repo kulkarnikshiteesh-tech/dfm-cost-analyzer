@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Background rounded square -->
+  <rect width="32" height="32" rx="7" fill="#3b6bca"/>
+  <!-- Hexagon outline -->
+  <path d="M16 4L27 9.5V22.5L16 28L5 22.5V9.5Z" stroke="white" stroke-width="2" fill="none" stroke-linejoin="round"/>
+  <!-- Center circle -->
+  <circle cx="16" cy="16" r="4" fill="white"/>
+</svg>
