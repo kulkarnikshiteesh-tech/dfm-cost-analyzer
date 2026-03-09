@@ -1,13 +1,55 @@
 import { useState } from "react";
-import FileUploadZone from "@/components/FileUploadZone";
+import WizardPanel from "@/components/WizardPanel";
 import DFMFeedback from "@/components/DFMFeedback";
 import CADViewer from "@/components/CADViewer";
 import CostBar from "@/components/CostBar";
 
 const Index = () => {
-  const [data, setData] = useState<any>(null);
+  const [glbUrl, setGlbUrl] = useState<string | null>(null);
+  const [uploadData, setUploadData] = useState<any>(null);
+  const [analysisData, setAnalysisData] = useState<any>(null);
   const [quantity, setQuantity] = useState(1000);
   const [material, setMaterial] = useState("ABS");
+  const [pullSelectionMode, setPullSelectionMode] = useState(false);
+  const [analysisComplete, setAnalysisComplete] = useState(false);
+
+  const handleUploadSuccess = (data: any) => {
+    setGlbUrl(data.glb_url);
+    setUploadData(data);
+    setAnalysisData(null);
+    setAnalysisComplete(false);
+    setPullSelectionMode(false);
+  };
+
+  const handleRequestPullDirection = () => {
+    setPullSelectionMode(true);
+  };
+
+  const handlePullConfirmed = async (pull: { x: number; y: number; z: number }) => {
+    if (!uploadData?.glb_url) return;
+    const glbFilename = uploadData.glb_url.split("/static/")[1]?.split("?")[0];
+    try {
+      const res = await fetch("https://threed-backend-4v3g.onrender.com/reanalyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ glb_filename: glbFilename, pull_direction: pull }),
+      });
+      if (res.ok) {
+        const newData = await res.json();
+        if (newData.glb_url && newData.glb_url.startsWith("/static/")) {
+          newData.glb_url = "https://threed-backend-4v3g.onrender.com" + newData.glb_url;
+        }
+        setGlbUrl(newData.glb_url);
+        setAnalysisData(newData);
+        setAnalysisComplete(true);
+        setPullSelectionMode(false);
+      }
+    } catch (err) {
+      console.error("Reanalyze error:", err);
+    }
+  };
+
+  const dfmData = analysisData;
 
   return (
     <div
@@ -35,39 +77,56 @@ const Index = () => {
       <div className="flex min-h-0 flex-1">
 
         {/* LEFT PANEL */}
-        <aside
-          className="flex w-[270px] shrink-0 flex-col gap-3 overflow-y-auto border-r border-[#e0deda] bg-white p-4"
-          style={{ scrollbarWidth: "none" }}
-        >
-          <FileUploadZone onUploadSuccess={(res) => setData(res)} />
-          <div className="h-px shrink-0 bg-[#e0deda]" />
-          <DFMFeedback
-            volumeCubicMm={data?.volume_cubic_mm}
-            boundingBox={data?.bounding_box_mm ?? null}
-            hasUndercuts={data?.has_undercuts}
-            undercutSeverity={data?.undercut_severity}
-            undercutMessage={data?.undercut_message}
-            material={material}
+        <aside className="flex w-[280px] shrink-0 flex-col border-r border-[#e0deda] bg-white overflow-hidden">
+          <WizardPanel
+            onUploadSuccess={handleUploadSuccess}
+            onAnalysisComplete={(data) => {
+              setAnalysisData(data);
+              setAnalysisComplete(true);
+            }}
+            onMaterialChange={setMaterial}
+            onQuantityChange={setQuantity}
+            uploadedData={uploadData}
             quantity={quantity}
+            material={material}
+            onRequestPullDirection={handleRequestPullDirection}
+            pullConfirmed={analysisComplete}
           />
         </aside>
 
         {/* CENTER */}
         <main className="flex min-w-0 flex-1 flex-col">
 
-          {/* 3D VIEWER — fills remaining height minus CostBar */}
+          {/* 3D VIEWER */}
           <div className="min-h-0 flex-1">
             <CADViewer
-              glbUrl={data?.glb_url || null}
-              onAnalysisUpdate={(newData) => setData(newData)}
+              glbUrl={glbUrl}
+              pullSelectionMode={pullSelectionMode}
+              onPullConfirmed={handlePullConfirmed}
+              analysisComplete={analysisComplete}
             />
           </div>
+
+          {/* DFM FEEDBACK — only after analysis */}
+          {dfmData && (
+            <div className="shrink-0 border-t border-[#e0deda] bg-white px-4 py-3 max-h-[160px] overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+              <DFMFeedback
+                volumeCubicMm={dfmData.volume_cubic_mm}
+                boundingBox={dfmData.bounding_box_mm ?? null}
+                hasUndercuts={dfmData.has_undercuts}
+                undercutSeverity={dfmData.undercut_severity}
+                undercutMessage={dfmData.undercut_message}
+                material={material}
+                quantity={quantity}
+              />
+            </div>
+          )}
 
           {/* COST BAR */}
           <div className="shrink-0 border-t border-[#e0deda] bg-white">
             <CostBar
-              volumeCubicMm={data?.volume_cubic_mm}
-              boundingBox={data?.bounding_box_mm ?? null}
+              volumeCubicMm={dfmData?.volume_cubic_mm}
+              boundingBox={dfmData?.bounding_box_mm ?? null}
               material={material}
               quantity={quantity}
               onMaterialChange={setMaterial}
