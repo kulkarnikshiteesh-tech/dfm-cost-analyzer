@@ -41,6 +41,12 @@ const Index = () => {
     setSelectionMode(false);
   };
 
+  // Called when user clicks "Try another face" — re-enables selection
+  const handleTryAnother = () => {
+    setFaceConfirmed(false);
+    setSelectionMode(true);
+  };
+
   return (
     <div
       className="flex flex-col font-sans text-[#1a1a1c]"
@@ -93,6 +99,7 @@ const Index = () => {
               selectionMode={selectionMode}
               onAnalysisResult={handleAnalysisResult}
               onFaceConfirmed={handleFaceConfirmed}
+              onTryAnother={handleTryAnother}
               analysisComplete={faceConfirmed}
             />
           </div>
