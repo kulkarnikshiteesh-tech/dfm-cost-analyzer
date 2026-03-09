@@ -1,4 +1,5 @@
 import CostInfoModal from "./CostInfoModal";
+import ReportModal from "./ReportModal";
 
 const MATERIALS: Record<string, { density: number; pricePerKg: number; label: string }> = {
   ABS:   { density: 1.05, pricePerKg: 120, label: "ABS" },
@@ -6,6 +7,8 @@ const MATERIALS: Record<string, { density: number; pricePerKg: number; label: st
   Nylon: { density: 1.14, pricePerKg: 120, label: "Nylon PA6" },
   PC:    { density: 1.20, pricePerKg: 170, label: "Polycarbonate" },
   HIPS:  { density: 1.05, pricePerKg: 110, label: "HIPS" },
+  TPU:   { density: 1.20, pricePerKg: 200, label: "TPU" },
+  TPE:   { density: 0.90, pricePerKg: 180, label: "TPE" },
 };
 
 const MOLD_TIERS = [
@@ -21,6 +24,13 @@ const OPERATOR_RATE = 115;
 const OVERHEAD = 1.25;
 const SCRAP = 1.05;
 const MARGIN = 1.15;
+const DESIGN_COST = 10000;
+
+const UNDERCUT_SURCHARGE: Record<string, number> = {
+  high: 0.35,
+  moderate: 0.15,
+  low: 0,
+};
 
 const QTY_STEPS = [100, 250, 500, 1000, 2000, 5000, 10000, 25000, 50000];
 
@@ -28,22 +38,33 @@ function getMoldTier(qty: number) {
   return MOLD_TIERS.find((t) => qty <= t.maxQty)!;
 }
 
-function calcMoldCost(vol: number, bb: { x: number; y: number; z: number }, qty: number) {
+function calcMoldCost(
+  vol: number,
+  bb: { x: number; y: number; z: number },
+  qty: number,
+  undercutSeverity?: string | null
+) {
   const tier = getMoldTier(qty);
   const { x, y, z } = bb;
   const pad = Math.min(25, Math.max(15, Math.max(x, y, z) * 0.12));
   const moldVolCm3 = ((x + pad * 2) * (y + pad * 2) * (z + pad * 2)) / 1000;
   const steelCost = moldVolCm3 * tier.weightFactor * tier.steelPricePerKg;
   const machCost = tier.machiningHrs * tier.rate;
-  const designCost = 10000;
+  const baseMold = Math.round((steelCost + machCost + DESIGN_COST) * OVERHEAD);
+  const severity = undercutSeverity ?? "low";
+  const surchargeRate = UNDERCUT_SURCHARGE[severity] ?? 0;
+  const surchargeCost = Math.round(baseMold * surchargeRate);
   return {
-    total: Math.round((steelCost + machCost + designCost) * OVERHEAD),
+    base: baseMold,
+    surcharge: surchargeCost,
+    total: baseMold + surchargeCost,
+    surchargeRate,
     label: tier.label,
   };
 }
 
 function calcPerPiece(vol: number, matKey: string, qty: number) {
-  const mat = MATERIALS[matKey];
+  const mat = MATERIALS[matKey] ?? MATERIALS["ABS"];
   const volCm3 = vol / 1000;
   const weightKg = (volCm3 * mat.density) / 1000;
   const discount = Math.min(0.15, qty / 100000);
@@ -59,6 +80,9 @@ interface CostBarProps {
   boundingBox?: { x: number; y: number; z: number } | null;
   material?: string;
   quantity?: number;
+  hasUndercuts?: boolean | null;
+  undercutSeverity?: string | null;
+  undercutMessage?: string | null;
   onMaterialChange?: (m: string) => void;
   onQuantityChange?: (q: number) => void;
 }
@@ -68,6 +92,9 @@ const CostBar = ({
   boundingBox,
   material = "ABS",
   quantity = 1000,
+  hasUndercuts,
+  undercutSeverity,
+  undercutMessage,
   onMaterialChange,
   onQuantityChange,
 }: CostBarProps) => {
@@ -79,13 +106,15 @@ const CostBar = ({
   );
 
   const handleSlider = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const idx = parseInt(e.target.value);
-    onQuantityChange?.(QTY_STEPS[idx]);
+    onQuantityChange?.(QTY_STEPS[parseInt(e.target.value)]);
   };
 
-  const mold = hasData ? calcMoldCost(volumeCubicMm!, boundingBox!, quantity) : null;
+  const severity = hasUndercuts ? (undercutSeverity ?? "low") : "low";
+  const mold = hasData ? calcMoldCost(volumeCubicMm!, boundingBox!, quantity, severity) : null;
   const perPiece = hasData ? calcPerPiece(volumeCubicMm!, material, quantity) : null;
-  const totalPerUnit = mold && perPiece ? Math.round((mold.total + perPiece * quantity) / quantity) : null;
+  const totalPerUnit = mold && perPiece
+    ? Math.round((mold.total + perPiece * quantity) / quantity)
+    : null;
 
   if (!hasData) {
     return (
@@ -101,21 +130,28 @@ const CostBar = ({
     <div className="px-6 py-3 space-y-2">
 
       {/* Cost figures + material selector */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-5">
 
         {/* Mold cost */}
-        <div className="min-w-[140px]">
+        <div className="min-w-[150px]">
           <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Mold Cost</p>
           <p className="text-xl font-black tabular-nums text-[#1a1a1c]">
             ₹{mold!.total.toLocaleString("en-IN")}
           </p>
-          <p className="text-[9px] text-[#b0ada8]">{mold!.label}</p>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="text-[9px] text-[#b0ada8]">{mold!.label}</p>
+            {mold!.surcharge > 0 && (
+              <span className="text-[9px] font-bold text-[#c08010]" title={`+${Math.round(mold!.surchargeRate * 100)}% undercut surcharge (approx.) — side-action sliders required. Actual surcharge varies.`}>
+                ⚠ +{Math.round(mold!.surchargeRate * 100)}% undercut
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="h-10 w-px bg-[#e0deda]" />
 
         {/* Per piece */}
-        <div className="min-w-[120px]">
+        <div className="min-w-[110px]">
           <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Per Piece</p>
           <p className="text-xl font-black tabular-nums text-[#1a1a1c]">
             ₹{perPiece!.toLocaleString("en-IN")}
@@ -126,7 +162,7 @@ const CostBar = ({
         <div className="h-10 w-px bg-[#e0deda]" />
 
         {/* Total per unit */}
-        <div className="min-w-[130px]">
+        <div className="min-w-[120px]">
           <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Total per Unit</p>
           <p className="text-xl font-black tabular-nums text-[#3b6bca]">
             ₹{totalPerUnit!.toLocaleString("en-IN")}
@@ -150,7 +186,17 @@ const CostBar = ({
           </select>
         </div>
 
-        <div className="ml-auto">
+        {/* Buttons */}
+        <div className="ml-auto flex items-center gap-2">
+          <ReportModal
+            volumeCubicMm={volumeCubicMm!}
+            boundingBox={boundingBox!}
+            material={material}
+            quantity={quantity}
+            hasUndercuts={hasUndercuts}
+            undercutSeverity={undercutSeverity}
+            undercutMessage={undercutMessage}
+          />
           <CostInfoModal />
         </div>
       </div>

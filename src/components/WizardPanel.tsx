@@ -406,7 +406,7 @@ const WizardPanel = ({
           </div>
         )}
 
-        {/* STEP 3 — Pull direction */}
+        {/* STEP 3 — Face selection */}
         {step === 3 && (
           <div className="space-y-3">
 
@@ -428,19 +428,53 @@ const WizardPanel = ({
               </div>
             )}
 
-            <div className="rounded-lg border border-[#e0a020]/40 bg-[#fffbf0] px-3 py-3 space-y-1.5">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-[#c08010]">Set pull direction</p>
-              <p className="text-[11px] text-[#6a6a6e] leading-relaxed">
-                Click the <strong>top or bottom flat face</strong> of your model in the 3D viewer.
-                This defines which direction the mould will open.
-              </p>
-              <p className="text-[10px] text-[#9a9a9e]">Critical for accurate undercut detection.</p>
-            </div>
+            {/* Instruction card */}
+            {!faceConfirmed && (
+              <div className="rounded-lg border border-[#e0a020]/40 bg-[#fffbf0] px-3 py-3 space-y-1.5">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-[#c08010]">Select Top / Bottom face</p>
+                <p className="text-[11px] text-[#6a6a6e] leading-relaxed">
+                  Click any face on your model in the 3D viewer. Try different faces — the one with the <strong>lowest undercut %</strong> is your best mould direction.
+                </p>
+                <p className="text-[10px] text-[#9a9a9e]">Cost bar updates live with each face you analyse.</p>
+              </div>
+            )}
 
+            {/* Live result while exploring — before confirmed */}
+            {!faceConfirmed && analysisData && (
+              <div className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-3 py-2.5 space-y-1">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Latest result</p>
+                <p className={`text-xs font-bold ${
+                  analysisData.has_undercuts
+                    ? analysisData.undercut_severity === "high" ? "text-[#dc2626]" : "text-[#c08010]"
+                    : "text-[#16a34a]"
+                }`}>
+                  {analysisData.has_undercuts
+                    ? analysisData.undercut_severity === "high" ? "⚠ High undercut risk" : "⚠ Moderate undercut risk"
+                    : "✓ No undercut risk"
+                  }
+                </p>
+                <p className="text-[10px] text-[#9a9a9e]">{analysisData.undercut_message}</p>
+                <p className="text-[10px] text-[#b0ada8] italic">Try another face to compare</p>
+              </div>
+            )}
+
+            {/* Confirmed */}
             {faceConfirmed && (
-              <div className="flex items-center gap-2 rounded-lg border border-[#c8ecd0] bg-[#f0faf4] px-3 py-2.5">
-                <span className="text-[#4caf72] text-base">✓</span>
-                <span className="text-[11px] font-bold text-[#4caf72]">Pull direction confirmed — analysis complete</span>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 rounded-lg border border-[#c8ecd0] bg-[#f0faf4] px-3 py-2.5">
+                  <span className="text-[#4caf72] text-base">✓</span>
+                  <span className="text-[11px] font-bold text-[#4caf72]">Top / Bottom face confirmed</span>
+                </div>
+
+                {/* Draft angle tip — shown when undercuts present */}
+                {analysisData?.has_undercuts && (
+                  <div className="rounded-lg border border-[#c8ddf8] bg-[#eef2fc] px-3 py-2.5 space-y-1">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-[#3b6bca]">💡 Design tip</p>
+                    <p className="text-[11px] text-[#4a5a7a] leading-relaxed">
+                      Your part has near-vertical walls. Adding a <strong>1–2° draft angle</strong> to these walls will reduce undercut percentage, make ejection easier, and reduce cycle time.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
