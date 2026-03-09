@@ -33,10 +33,12 @@ function GLBModel({
   useEffect(() => {
     scene.traverse((child: any) => {
       if (child.isMesh) {
+        // Don't override vertex colors — backend encodes undercut highlights
+        // via per-face colors. Just set material properties.
         child.material = child.material.clone();
-        child.material.color.set("#3b6bca");
         child.material.metalness = 0.1;
         child.material.roughness = 0.4;
+        child.material.vertexColors = true;
       }
     });
     const box = new THREE.Box3().setFromObject(scene);

@@ -23,6 +23,20 @@ const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
         body: formData,
       });
 
+      if (response.status === 422) {
+        const errData = await response.json();
+        const titles: Record<string, string> = {
+          assembly: "⚠️ Assembly detected",
+          not_moldable: "⚠️ Not injection moldable",
+          geometry_error: "⚠️ Geometry error",
+        };
+        const title = titles[errData.error] || "⚠️ Upload issue";
+        toast.error(`${title} — ${errData.message}`, { duration: 8000 });
+        setFile(null);
+        setIsUploading(false);
+        return;
+      }
+
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       const data = await response.json();
