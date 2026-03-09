@@ -84,7 +84,7 @@ function recommendMaterial(answers: Answers) {
 function StepDot({ n, current, done }: { n: number; current: number; done: boolean }) {
   const active = n === current;
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1">
       <div className={`flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-black transition-all ${
         done ? "bg-[#4caf72] text-white" : active ? "bg-[#3b6bca] text-white" : "bg-[#f0ede8] text-[#b0ada8]"
       }`}>
@@ -93,7 +93,7 @@ function StepDot({ n, current, done }: { n: number; current: number; done: boole
       <span className={`text-[9px] font-bold uppercase tracking-widest ${
         active ? "text-[#3b6bca]" : done ? "text-[#4caf72]" : "text-[#b0ada8]"
       }`}>
-        {n === 1 ? "Upload" : n === 2 ? "Configure" : "Direction"}
+        {n === 1 ? "Upload" : n === 2 ? "Configure" : "Dir."}
       </span>
     </div>
   );
@@ -127,11 +127,12 @@ interface WizardPanelProps {
   onAnalysisComplete: (data: any) => void;
   onMaterialChange: (m: string) => void;
   onQuantityChange: (q: number) => void;
-  onRequestPullDirection: () => void;
+  onRequestFaceSelection: () => void;
   uploadedData: any;
   quantity: number;
   material: string;
-  pullConfirmed: boolean;
+  faceConfirmed: boolean;
+  analysisData?: any;
 }
 
 type Step = 1 | 2 | 3;
@@ -140,11 +141,12 @@ const WizardPanel = ({
   onUploadSuccess,
   onMaterialChange,
   onQuantityChange,
-  onRequestPullDirection,
+  onRequestFaceSelection,
   uploadedData,
   quantity,
   material,
-  pullConfirmed,
+  faceConfirmed,
+  analysisData,
 }: WizardPanelProps) => {
   const [step, setStep] = useState<Step>(1);
   const [file, setFile] = useState<File | null>(null);
@@ -221,7 +223,7 @@ const WizardPanel = ({
     setRecommendation(rec);
     if (!materialOverridden) onMaterialChange(rec.id);
     setStep(3);
-    onRequestPullDirection();
+    onRequestFaceSelection();
   };
 
   const handleReset = () => {
@@ -238,12 +240,12 @@ const WizardPanel = ({
     <div className="flex h-full flex-col overflow-hidden">
 
       {/* Step indicators */}
-      <div className="flex shrink-0 items-center justify-between border-b border-[#e0deda] px-4 py-3">
+      <div className="flex shrink-0 items-center border-b border-[#e0deda] px-3 py-3 gap-1">
         <StepDot n={1} current={step} done={step > 1} />
         <div className="h-px flex-1 mx-2 bg-[#e0deda]" />
         <StepDot n={2} current={step} done={step > 2} />
         <div className="h-px flex-1 mx-2 bg-[#e0deda]" />
-        <StepDot n={3} current={step} done={pullConfirmed} />
+        <StepDot n={3} current={step} done={faceConfirmed} />
       </div>
 
       {/* Scrollable content */}
@@ -435,7 +437,7 @@ const WizardPanel = ({
               <p className="text-[10px] text-[#9a9a9e]">Critical for accurate undercut detection.</p>
             </div>
 
-            {pullConfirmed && (
+            {faceConfirmed && (
               <div className="flex items-center gap-2 rounded-lg border border-[#c8ecd0] bg-[#f0faf4] px-3 py-2.5">
                 <span className="text-[#4caf72] text-base">✓</span>
                 <span className="text-[11px] font-bold text-[#4caf72]">Pull direction confirmed — analysis complete</span>
@@ -449,7 +451,7 @@ const WizardPanel = ({
 
       {/* Footer */}
       <div className="shrink-0 border-t border-[#e0deda] bg-white px-4 py-3 flex gap-2">
-        {step > 1 && !pullConfirmed && (
+        {step > 1 && !faceConfirmed && (
           <button
             onClick={() => setStep((s) => (s - 1) as Step)}
             className="flex items-center gap-1 rounded-lg border border-[#e0deda] px-3 py-2 text-[11px] font-bold text-[#6a6a6e] hover:bg-[#f8f7f4] transition-colors"
@@ -470,7 +472,7 @@ const WizardPanel = ({
           </button>
         )}
 
-        {pullConfirmed && (
+        {faceConfirmed && (
           <button
             onClick={handleReset}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#e0deda] px-4 py-2 text-[11px] font-bold text-[#6a6a6e] hover:bg-[#f8f7f4] transition-colors"
@@ -485,3 +487,5 @@ const WizardPanel = ({
 };
 
 export default WizardPanel;
+
+
