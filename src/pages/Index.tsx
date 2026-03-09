@@ -4,52 +4,45 @@ import DFMFeedback from "@/components/DFMFeedback";
 import CADViewer from "@/components/CADViewer";
 import CostBar from "@/components/CostBar";
 
+const BACKEND = "https://threed-backend-4v3g.onrender.com";
+
 const Index = () => {
   const [glbUrl, setGlbUrl] = useState<string | null>(null);
+  const [uploadGlbFilename, setUploadGlbFilename] = useState<string | null>(null);
   const [uploadData, setUploadData] = useState<any>(null);
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [quantity, setQuantity] = useState(1000);
   const [material, setMaterial] = useState("ABS");
-  const [pullSelectionMode, setPullSelectionMode] = useState(false);
-  const [analysisComplete, setAnalysisComplete] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [faceConfirmed, setFaceConfirmed] = useState(false);
 
   const handleUploadSuccess = (data: any) => {
     setGlbUrl(data.glb_url);
+    // Extract just the filename for reanalyze calls
+    const filename = data.glb_url?.split("/static/")[1]?.split("?")[0] ?? null;
+    setUploadGlbFilename(filename);
     setUploadData(data);
     setAnalysisData(null);
-    setAnalysisComplete(false);
-    setPullSelectionMode(false);
+    setFaceConfirmed(false);
+    setSelectionMode(false);
   };
 
-  const handleRequestPullDirection = () => {
-    setPullSelectionMode(true);
+  const handleRequestFaceSelection = () => {
+    setSelectionMode(true);
+    setFaceConfirmed(false);
   };
 
-  const handlePullConfirmed = async (pull: { x: number; y: number; z: number }) => {
-    if (!uploadData?.glb_url) return;
-    const glbFilename = uploadData.glb_url.split("/static/")[1]?.split("?")[0];
-    try {
-      const res = await fetch("https://threed-backend-4v3g.onrender.com/reanalyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ glb_filename: glbFilename, pull_direction: pull }),
-      });
-      if (res.ok) {
-        const newData = await res.json();
-        if (newData.glb_url && newData.glb_url.startsWith("/static/")) {
-          newData.glb_url = "https://threed-backend-4v3g.onrender.com" + newData.glb_url;
-        }
-        setGlbUrl(newData.glb_url);
-        setAnalysisData(newData);
-        setAnalysisComplete(true);
-        setPullSelectionMode(false);
-      }
-    } catch (err) {
-      console.error("Reanalyze error:", err);
-    }
+  // Called each time user clicks "Analyse this face" — updates results live
+  const handleAnalysisResult = (result: any) => {
+    if (result.glb_url) setGlbUrl(result.glb_url);
+    setAnalysisData(result);
   };
 
-  const dfmData = analysisData;
+  // Called when user clicks "Confirm this face" — locks in the result
+  const handleFaceConfirmed = () => {
+    setFaceConfirmed(true);
+    setSelectionMode(false);
+  };
 
   return (
     <div
@@ -80,17 +73,15 @@ const Index = () => {
         <aside className="flex w-[280px] shrink-0 flex-col border-r border-[#e0deda] bg-white overflow-hidden">
           <WizardPanel
             onUploadSuccess={handleUploadSuccess}
-            onAnalysisComplete={(data) => {
-              setAnalysisData(data);
-              setAnalysisComplete(true);
-            }}
+            onAnalysisComplete={(data) => setAnalysisData(data)}
             onMaterialChange={setMaterial}
             onQuantityChange={setQuantity}
             uploadedData={uploadData}
             quantity={quantity}
             material={material}
-            onRequestPullDirection={handleRequestPullDirection}
-            pullConfirmed={analysisComplete}
+            onRequestFaceSelection={handleRequestFaceSelection}
+            faceConfirmed={faceConfirmed}
+            analysisData={analysisData}
           />
         </aside>
 
@@ -101,21 +92,26 @@ const Index = () => {
           <div className="min-h-0 flex-1">
             <CADViewer
               glbUrl={glbUrl}
-              pullSelectionMode={pullSelectionMode}
-              onPullConfirmed={handlePullConfirmed}
-              analysisComplete={analysisComplete}
+              uploadGlbFilename={uploadGlbFilename}
+              selectionMode={selectionMode}
+              onAnalysisResult={handleAnalysisResult}
+              onFaceConfirmed={handleFaceConfirmed}
+              analysisComplete={faceConfirmed}
             />
           </div>
 
-          {/* DFM FEEDBACK — only after analysis */}
-          {dfmData && (
-            <div className="shrink-0 border-t border-[#e0deda] bg-white px-4 py-3 max-h-[160px] overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+          {/* DFM FEEDBACK — only after first analysis */}
+          {analysisData && (
+            <div
+              className="shrink-0 border-t border-[#e0deda] bg-white px-4 py-3 max-h-[160px] overflow-y-auto"
+              style={{ scrollbarWidth: "none" }}
+            >
               <DFMFeedback
-                volumeCubicMm={dfmData.volume_cubic_mm}
-                boundingBox={dfmData.bounding_box_mm ?? null}
-                hasUndercuts={dfmData.has_undercuts}
-                undercutSeverity={dfmData.undercut_severity}
-                undercutMessage={dfmData.undercut_message}
+                volumeCubicMm={analysisData.volume_cubic_mm}
+                boundingBox={analysisData.bounding_box_mm ?? null}
+                hasUndercuts={analysisData.has_undercuts}
+                undercutSeverity={analysisData.undercut_severity}
+                undercutMessage={analysisData.undercut_message}
                 material={material}
                 quantity={quantity}
               />
@@ -125,8 +121,8 @@ const Index = () => {
           {/* COST BAR */}
           <div className="shrink-0 border-t border-[#e0deda] bg-white">
             <CostBar
-              volumeCubicMm={dfmData?.volume_cubic_mm}
-              boundingBox={dfmData?.bounding_box_mm ?? null}
+              volumeCubicMm={analysisData?.volume_cubic_mm}
+              boundingBox={analysisData?.bounding_box_mm ?? null}
               material={material}
               quantity={quantity}
               onMaterialChange={setMaterial}
