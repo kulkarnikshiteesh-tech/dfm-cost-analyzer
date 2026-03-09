@@ -4,8 +4,6 @@ import DFMFeedback from "@/components/DFMFeedback";
 import CADViewer from "@/components/CADViewer";
 import CostBar from "@/components/CostBar";
 
-const BACKEND = "https://threed-backend-4v3g.onrender.com";
-
 const Index = () => {
   const [glbUrl, setGlbUrl] = useState<string | null>(null);
   const [uploadGlbFilename, setUploadGlbFilename] = useState<string | null>(null);
@@ -18,7 +16,6 @@ const Index = () => {
 
   const handleUploadSuccess = (data: any) => {
     setGlbUrl(data.glb_url);
-    // Extract just the filename for reanalyze calls
     const filename = data.glb_url?.split("/static/")[1]?.split("?")[0] ?? null;
     setUploadGlbFilename(filename);
     setUploadData(data);
@@ -32,13 +29,13 @@ const Index = () => {
     setFaceConfirmed(false);
   };
 
-  // Called each time user clicks "Analyse this face" — updates results live
+  // Called every time user clicks "Analyse this face" — updates results live
   const handleAnalysisResult = (result: any) => {
     if (result.glb_url) setGlbUrl(result.glb_url);
     setAnalysisData(result);
   };
 
-  // Called when user clicks "Confirm this face" — locks in the result
+  // Called when user clicks "Accept" — locks in
   const handleFaceConfirmed = () => {
     setFaceConfirmed(true);
     setSelectionMode(false);
@@ -100,7 +97,7 @@ const Index = () => {
             />
           </div>
 
-          {/* DFM FEEDBACK — only after first analysis */}
+          {/* DFM FEEDBACK — only after analysis */}
           {analysisData && (
             <div
               className="shrink-0 border-t border-[#e0deda] bg-white px-4 py-3 max-h-[160px] overflow-y-auto"
@@ -125,6 +122,9 @@ const Index = () => {
               boundingBox={analysisData?.bounding_box_mm ?? null}
               material={material}
               quantity={quantity}
+              hasUndercuts={analysisData?.has_undercuts ?? null}
+              undercutSeverity={analysisData?.undercut_severity ?? null}
+              undercutMessage={analysisData?.undercut_message ?? null}
               onMaterialChange={setMaterial}
               onQuantityChange={setQuantity}
             />
