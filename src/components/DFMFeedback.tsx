@@ -61,16 +61,16 @@ function getMachineSpec(vol: number, bb: { x: number; y: number; z: number }) {
 }
 
 const borderBySeverity: Record<string, string> = {
-  high: "border-l-[#c0392b]",
-  moderate: "border-l-[#d4a017]",
-  low: "border-l-[#6abf6a]",
-  unknown: "border-l-[#3a3a3e]",
+  high: "border-l-[#e05050]",
+  moderate: "border-l-[#e0a020]",
+  low: "border-l-[#4caf72]",
+  unknown: "border-l-[#d0cdc8]",
 };
 
 const iconColor = {
-  success: "text-[#6abf6a]",
-  warning: "text-[#d4a017]",
-  info: "text-[#6a9fd8]",
+  success: "text-[#4caf72]",
+  warning: "text-[#e0a020]",
+  info: "text-[#4a7ed8]",
 };
 
 const icons = {
@@ -96,24 +96,24 @@ const DFMFeedback = ({
 
   return (
     <div className="space-y-3">
-      <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#4a4a4e]">
+      <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9a9a9e]">
         DFM Analysis
       </h3>
 
       {!hasData ? (
-        <div className="rounded-lg border border-dashed border-[#2a2a2e] px-4 py-8 text-center">
-          <p className="text-[11px] text-[#3a3a3e]">Awaiting model upload</p>
+        <div className="rounded-lg border border-dashed border-[#d8d5d0] px-4 py-8 text-center">
+          <p className="text-[11px] text-[#b0ada8]">Awaiting model upload</p>
         </div>
       ) : (
         <div className="space-y-2">
 
           {/* Dimensions */}
-          <div className="rounded-lg border border-[#2a2a2e] bg-[#161618] p-3 space-y-2">
+          <div className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] p-3 space-y-2">
             <div className="flex items-center gap-2">
               <Ruler className="h-3.5 w-3.5 shrink-0 text-[#3b6bca]" />
-              <span className="text-[11px] text-[#8a8a8e]">
+              <span className="text-[11px] text-[#6a6a6e]">
                 Volume:{" "}
-                <span className="font-bold font-mono text-[#e8e6e1]">
+                <span className="font-bold font-mono text-[#1a1a1c]">
                   {volumeCubicMm!.toLocaleString()} mm³
                 </span>
               </span>
@@ -121,9 +121,9 @@ const DFMFeedback = ({
             {safeBB.x > 0 && (
               <div className="flex items-center gap-2">
                 <Info className="h-3.5 w-3.5 shrink-0 text-[#3b6bca]" />
-                <span className="text-[11px] text-[#8a8a8e]">
+                <span className="text-[11px] text-[#6a6a6e]">
                   Box:{" "}
-                  <span className="font-bold font-mono text-[#e8e6e1]">
+                  <span className="font-bold font-mono text-[#1a1a1c]">
                     {safeBB.x.toFixed(1)} × {safeBB.y.toFixed(1)} × {safeBB.z.toFixed(1)} mm
                   </span>
                 </span>
@@ -133,13 +133,13 @@ const DFMFeedback = ({
 
           {/* Undercut result */}
           {undercutMessage && (
-            <div className={`rounded-lg border border-[#2a2a2e] border-l-4 bg-[#161618] px-3 py-3 ${borderBySeverity[undercutSeverity || "low"]}`}>
+            <div className={`rounded-lg border border-[#e0deda] border-l-4 bg-[#f8f7f4] px-3 py-3 ${borderBySeverity[undercutSeverity || "low"]}`}>
               <div className="flex items-start gap-2">
                 {hasUndercuts
-                  ? <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#d4a017]" />
-                  : <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#6abf6a]" />
+                  ? <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#e0a020]" />
+                  : <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#4caf72]" />
                 }
-                <span className="text-[11px] leading-relaxed text-[#c8c6c1]">{undercutMessage}</span>
+                <span className="text-[11px] leading-relaxed text-[#4a4a4e]">{undercutMessage}</span>
               </div>
             </div>
           )}
@@ -149,9 +149,9 @@ const DFMFeedback = ({
             {issues.map((item, i) => {
               const Icon = icons[item.type];
               return (
-                <li key={i} className="flex items-start gap-2 rounded-lg border border-[#2a2a2e] bg-[#161618] px-3 py-2">
+                <li key={i} className="flex items-start gap-2 rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-3 py-2">
                   <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${iconColor[item.type]}`} />
-                  <span className="text-[11px] leading-snug text-[#8a8a8e]">{item.text}</span>
+                  <span className="text-[11px] leading-snug text-[#6a6a6e]">{item.text}</span>
                 </li>
               );
             })}
@@ -159,29 +159,29 @@ const DFMFeedback = ({
 
           {/* Mold recommendation */}
           {moldRec && (
-            <div className="rounded-lg border border-[#2a2a2e] bg-[#161618] px-3 py-2.5">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-[#4a4a4e] mb-1.5">Recommended Mold</p>
+            <div className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-3 py-2.5">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e] mb-1.5">Recommended Mold</p>
               <div className="flex items-start gap-2">
                 <Package className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#3b6bca]" />
-                <span className="text-[11px] text-[#8a8a8e]">{moldRec}</span>
+                <span className="text-[11px] text-[#6a6a6e]">{moldRec}</span>
               </div>
             </div>
           )}
 
           {/* Machine spec */}
           {machine && (
-            <div className="rounded-lg border border-[#2a2a2e] bg-[#161618] px-3 py-2.5">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-[#4a4a4e] mb-1.5">Machine Spec</p>
+            <div className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-3 py-2.5">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e] mb-1.5">Machine Spec</p>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1.5">
-                  <Zap className="h-3.5 w-3.5 text-[#d4a017]" />
-                  <span className="text-xs font-bold font-mono text-[#e8e6e1]">{machine.tonnage}T</span>
+                  <Zap className="h-3.5 w-3.5 text-[#e0a020]" />
+                  <span className="text-xs font-bold font-mono text-[#1a1a1c]">{machine.tonnage}T</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Wrench className="h-3 w-3 text-[#5a5a5e]" />
-                  <span className="text-[11px] font-mono text-[#8a8a8e]">{machine.shotSize}</span>
+                  <Wrench className="h-3 w-3 text-[#9a9a9e]" />
+                  <span className="text-[11px] font-mono text-[#6a6a6e]">{machine.shotSize}</span>
                 </div>
-                <span className="text-[11px] font-mono text-[#4a4a4e]">{machine.screwDia}</span>
+                <span className="text-[11px] font-mono text-[#b0ada8]">{machine.screwDia}</span>
               </div>
             </div>
           )}

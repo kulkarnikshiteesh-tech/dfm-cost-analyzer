@@ -1,4 +1,3 @@
-import { useState } from "react";
 import CostInfoModal from "./CostInfoModal";
 
 const MATERIALS: Record<string, { density: number; pricePerKg: number; label: string }> = {
@@ -23,7 +22,6 @@ const OVERHEAD = 1.25;
 const SCRAP = 1.05;
 const MARGIN = 1.15;
 
-// Quantity steps for the slider (log scale feel)
 const QTY_STEPS = [100, 250, 500, 1000, 2000, 5000, 10000, 25000, 50000];
 
 function getMoldTier(qty: number) {
@@ -75,7 +73,6 @@ const CostBar = ({
 }: CostBarProps) => {
   const hasData = !!volumeCubicMm && !!boundingBox;
 
-  // Find nearest step index for slider
   const stepIndex = QTY_STEPS.reduce(
     (best, val, i) => (Math.abs(val - quantity) < Math.abs(QTY_STEPS[best] - quantity) ? i : best),
     0
@@ -93,7 +90,7 @@ const CostBar = ({
   if (!hasData) {
     return (
       <div className="flex items-center justify-center px-6 py-4">
-        <p className="text-[11px] uppercase tracking-widest text-[#3a3a3e]">
+        <p className="text-[11px] uppercase tracking-widest text-[#b0ada8]">
           Upload a model to see cost estimates
         </p>
       </div>
@@ -101,51 +98,51 @@ const CostBar = ({
   }
 
   return (
-    <div className="px-6 py-4 space-y-3">
+    <div className="px-6 py-3 space-y-2">
 
-      {/* Top row: cost figures + material selector */}
+      {/* Cost figures + material selector */}
       <div className="flex items-center gap-6">
 
         {/* Mold cost */}
         <div className="min-w-[140px]">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#5a5a5e]">Mold Cost</p>
-          <p className="text-xl font-black tabular-nums text-[#e8e6e1]">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Mold Cost</p>
+          <p className="text-xl font-black tabular-nums text-[#1a1a1c]">
             ₹{mold!.total.toLocaleString("en-IN")}
           </p>
-          <p className="text-[9px] text-[#4a4a4e]">{mold!.label}</p>
+          <p className="text-[9px] text-[#b0ada8]">{mold!.label}</p>
         </div>
 
-        <div className="h-10 w-px bg-[#2a2a2e]" />
+        <div className="h-10 w-px bg-[#e0deda]" />
 
         {/* Per piece */}
         <div className="min-w-[120px]">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#5a5a5e]">Per Piece</p>
-          <p className="text-xl font-black tabular-nums text-[#e8e6e1]">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Per Piece</p>
+          <p className="text-xl font-black tabular-nums text-[#1a1a1c]">
             ₹{perPiece!.toLocaleString("en-IN")}
           </p>
-          <p className="text-[9px] text-[#4a4a4e]">Excl. mold</p>
+          <p className="text-[9px] text-[#b0ada8]">Excl. mold</p>
         </div>
 
-        <div className="h-10 w-px bg-[#2a2a2e]" />
+        <div className="h-10 w-px bg-[#e0deda]" />
 
         {/* Total per unit */}
         <div className="min-w-[130px]">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#5a5a5e]">Total per Unit</p>
+          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Total per Unit</p>
           <p className="text-xl font-black tabular-nums text-[#3b6bca]">
             ₹{totalPerUnit!.toLocaleString("en-IN")}
           </p>
-          <p className="text-[9px] text-[#4a4a4e]">Incl. mold amort.</p>
+          <p className="text-[9px] text-[#b0ada8]">Incl. mold amort.</p>
         </div>
 
-        <div className="h-10 w-px bg-[#2a2a2e]" />
+        <div className="h-10 w-px bg-[#e0deda]" />
 
         {/* Material selector */}
         <div className="space-y-1">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#5a5a5e]">Material</p>
+          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Material</p>
           <select
             value={material}
             onChange={(e) => onMaterialChange?.(e.target.value)}
-            className="rounded-md border border-[#2a2a2e] bg-[#1a1a1c] px-2 py-1 text-xs font-semibold text-[#e8e6e1] focus:outline-none focus:border-[#3b6bca]"
+            className="rounded-md border border-[#e0deda] bg-[#f5f4f0] px-2 py-1 text-xs font-semibold text-[#1a1a1c] focus:outline-none focus:border-[#3b6bca]"
           >
             {Object.entries(MATERIALS).map(([key, val]) => (
               <option key={key} value={key}>{val.label}</option>
@@ -160,7 +157,7 @@ const CostBar = ({
 
       {/* Slider row */}
       <div className="flex items-center gap-4">
-        <span className="text-[9px] font-bold uppercase tracking-widest text-[#5a5a5e] w-16 shrink-0">Quantity</span>
+        <span className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e] w-16 shrink-0">Quantity</span>
         <input
           type="range"
           min={0}
@@ -168,16 +165,17 @@ const CostBar = ({
           step={1}
           value={stepIndex}
           onChange={handleSlider}
-          className="flex-1 h-1.5 cursor-pointer appearance-none rounded-full bg-[#2a2a2e] accent-[#3b6bca]"
+          className="flex-1 h-1.5 cursor-pointer appearance-none rounded-full accent-[#3b6bca]"
+          style={{ background: "#e0deda" }}
         />
-        <span className="text-sm font-black tabular-nums text-[#e8e6e1] w-16 text-right shrink-0">
+        <span className="text-sm font-black tabular-nums text-[#1a1a1c] w-16 text-right shrink-0">
           {quantity.toLocaleString("en-IN")}
         </span>
-        <span className="text-[9px] text-[#4a4a4e]">units</span>
+        <span className="text-[9px] text-[#b0ada8]">units</span>
       </div>
 
       {/* Quantity scale labels */}
-      <div className="flex justify-between px-16 text-[8px] text-[#3a3a3e]">
+      <div className="flex justify-between px-16 text-[8px] text-[#b0ada8]">
         {QTY_STEPS.map((q) => (
           <span key={q} className={quantity === q ? "text-[#3b6bca] font-bold" : ""}>
             {q >= 1000 ? `${q / 1000}k` : q}

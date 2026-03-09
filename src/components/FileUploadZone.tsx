@@ -12,41 +12,41 @@ const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  const [analysis, setAnalysis] = useState<any>(null);
-const uploadFile = async (selectedFile: File) => {
-  setIsUploading(true);
-  try {
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-    
-    const response = await fetch("https://threed-backend-4v3g.onrender.com/upload", {  // Your working backend URL
-      method: "POST",
-      body: formData,
-    });
-    
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    
-    const data = await response.json();
-    if (data.glb_url && data.glb_url.startsWith("/static/")) {
-  data.glb_url = "https://threed-backend-4v3g.onrender.com" + data.glb_url;
-}
-    console.log("API DATA:", data);
-    
-    setAnalysis(data);
-    if (onUploadSuccess) onUploadSuccess(data);
-    
-  } catch (error) {
-    console.error("Upload Error:", error);
-    toast.error("Upload failed: " + error.message);
-  } finally {
-    setIsUploading(false);
-  }
-};
-const handleDrop = useCallback((e: React.DragEvent) => {
+  const uploadFile = async (selectedFile: File) => {
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const response = await fetch("https://threed-backend-4v3g.onrender.com/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = await response.json();
+      if (data.glb_url && data.glb_url.startsWith("/static/")) {
+        data.glb_url = "https://threed-backend-4v3g.onrender.com" + data.glb_url;
+      }
+
+      if (onUploadSuccess) onUploadSuccess(data);
+    } catch (error: any) {
+      console.error("Upload Error:", error);
+      toast.error("Upload failed: " + error.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const dropped = e.dataTransfer.files[0];
-    if (dropped?.name.toLowerCase().endsWith(".step") || dropped?.name.toLowerCase().endsWith(".stp")) {
+    if (
+      dropped?.name.toLowerCase().endsWith(".step") ||
+      dropped?.name.toLowerCase().endsWith(".stp")
+    ) {
       setFile(dropped);
       uploadFile(dropped);
     } else {
@@ -64,38 +64,39 @@ const handleDrop = useCallback((e: React.DragEvent) => {
 
   return (
     <div className="space-y-3">
-      <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#4a4a4e]">
-  Upload Geometry
-</h3>
+      <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#9a9a9e]">
+        Upload Geometry
+      </h3>
+
       <motion.label
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
-        className={`relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-all ${
-  isDragging ? "border-[#3b6bca] bg-[#1e3358] scale-[1.02]" : "border-[#2a2a2e] bg-[#161618] hover:border-[#3b6bca]/40 hover:bg-[#1a1a1c]"
+        className={`relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 transition-all ${
+          isDragging
+            ? "border-[#3b6bca] bg-[#eef2fc] scale-[1.02]"
+            : "border-[#d8d5d0] bg-[#f5f4f0] hover:border-[#3b6bca]/50 hover:bg-[#eef2fc]/40"
         } ${isUploading ? "pointer-events-none opacity-60" : ""}`}
       >
-        <input 
-          type="file" 
-          accept=".step,.stp" 
-          onChange={handleFileSelect} 
-          className="sr-only" 
-          disabled={isUploading} 
+        <input
+          type="file"
+          accept=".step,.stp"
+          onChange={handleFileSelect}
+          className="sr-only"
+          disabled={isUploading}
         />
         {isUploading ? (
           <>
-            <Loader2 className="mb-3 h-8 w-8 animate-spin text-primary" />
-            <span className="text-sm font-bold text-primary animate-pulse italic">
-              Analyzing DFM...
-            </span>
+            <Loader2 className="mb-2 h-7 w-7 animate-spin text-[#3b6bca]" />
+            <span className="text-sm font-bold text-[#3b6bca] animate-pulse">Analyzing DFM…</span>
           </>
         ) : (
           <>
-            <div className="mb-3 rounded-full bg-background p-3 shadow-sm">
-              <Upload className="h-6 w-6 text-muted-foreground" />
+            <div className="mb-2 rounded-full bg-white p-2.5 shadow-sm border border-[#e8e5e0]">
+              <Upload className="h-5 w-5 text-[#3b6bca]" />
             </div>
-            <span className="text-sm font-bold tracking-tight">Drop .step here</span>
-            <span className="text-[10px] text-muted-foreground mt-1 uppercase font-medium">
+            <span className="text-sm font-bold text-[#1a1a1c] tracking-tight">Drop .step here</span>
+            <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-[#9a9a9e]">
               or click to browse
             </span>
           </>
@@ -104,28 +105,28 @@ const handleDrop = useCallback((e: React.DragEvent) => {
 
       <AnimatePresence>
         {file && !isUploading && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }} 
-            animate={{ opacity: 1, y: 0 }} 
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3"
+            className="flex items-center gap-3 rounded-lg border border-[#c8ddf8] bg-[#eef2fc] px-3 py-2.5"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded bg-primary/10">
-              <FileBox className="h-4 w-4 text-primary" />
+            <div className="flex h-7 w-7 items-center justify-center rounded bg-[#3b6bca]/10">
+              <FileBox className="h-4 w-4 text-[#3b6bca]" />
             </div>
             <div className="flex flex-1 flex-col overflow-hidden">
-              <span className="truncate text-xs font-bold uppercase tracking-tight font-mono">
+              <span className="truncate text-xs font-bold uppercase tracking-tight font-mono text-[#1a1a1c]">
                 {file.name}
               </span>
-              <span className="text-[9px] text-muted-foreground uppercase font-semibold">
-                Verified File Ready
+              <span className="text-[9px] font-semibold uppercase text-[#6a9fd8]">
+                Verified · Ready
               </span>
             </div>
-            <button 
-              onClick={() => setFile(null)} 
-              className="rounded-full p-1 hover:bg-background transition-colors"
+            <button
+              onClick={() => setFile(null)}
+              className="rounded-full p-1 hover:bg-white/60 transition-colors"
             >
-              <X className="h-4 w-4 text-muted-foreground hover:text-red-500" />
+              <X className="h-3.5 w-3.5 text-[#9a9a9e] hover:text-red-400" />
             </button>
           </motion.div>
         )}
