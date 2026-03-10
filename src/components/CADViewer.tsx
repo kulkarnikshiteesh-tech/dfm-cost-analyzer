@@ -78,7 +78,8 @@ function GLBModel({
 }) {
   const { scene } = useGLTF(url, true);
 
-  // Scale + centre on first load
+  // Scale + centre on first load, and reset vertex colours to default blue
+  // (backend GLBs may have orange undercut colours baked in — we override them)
   useEffect(() => {
     scene.traverse((child: any) => {
       if (child.isMesh) {
@@ -94,6 +95,8 @@ function GLBModel({
     scene.scale.setScalar(scale);
     const center = box.getCenter(new THREE.Vector3());
     scene.position.sub(center.multiplyScalar(scale));
+    // Always reset to blue on load — applyFaceHighlight will re-apply if needed
+    applyFaceHighlight(scene, highlightNormal);
   }, [scene]);
 
   // Apply highlight whenever highlightNormal changes
@@ -216,6 +219,8 @@ const CADViewer = ({
   };
 
   const handleTryAnother = () => {
+    // Clear cached analysis GLB from Three.js so it doesn't bleed into next load
+    if (viewerGlbUrl) useGLTF.clear(viewerGlbUrl);
     // Restore original clean upload GLB from ref, bust cache so Three.js reloads it
     const base = originalGlbUrl.current?.split("?")[0] ?? null;
     setViewerGlbUrl(base ? `${base}?t=${Date.now()}` : null);
