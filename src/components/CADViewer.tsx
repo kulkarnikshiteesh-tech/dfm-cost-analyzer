@@ -28,7 +28,6 @@ function buildRoundedBox(size: number, radius: number, segs: number): THREE.Buff
   };
 
   // ── 6 flat face patches ────────────────────────────────────────────────────
-  // Each face is a (segs+1)×(segs+1) grid of vertices
   type Axis = 0 | 1 | 2;
   const faces: { ax: Axis; sign: number; ua: Axis; va: Axis }[] = [
     { ax: 0, sign:  1, ua: 2, va: 1 },
@@ -42,10 +41,12 @@ function buildRoundedBox(size: number, radius: number, segs: number): THREE.Buff
     const base = vc;
     for (let i = 0; i <= segs; i++) {
       for (let j = 0; j <= segs; j++) {
+        // Face spans from -h to +h in both u and v directions
         const pu = -h + 2 * h * i / segs;
         const pv = -h + 2 * h * j / segs;
         const p: [number, number, number] = [0, 0, 0];
-        p[ax] = sign * (size / 2); p[ua] = pu; p[va] = pv;
+        // Face sits at size/2 in the normal axis
+        p[ax] = sign * (h + radius); p[ua] = pu; p[va] = pv;
         const n: [number, number, number] = [0, 0, 0]; n[ax] = sign;
         v(p[0], p[1], p[2], n[0], n[1], n[2]);
       }
@@ -59,9 +60,6 @@ function buildRoundedBox(size: number, radius: number, segs: number): THREE.Buff
   }
 
   // ── 12 edge cylinder strips ────────────────────────────────────────────────
-  // Each edge runs along one axis; the rounded strip sweeps a quarter-circle.
-  // cx,cy,cz = centre of the edge strip; axis = direction along edge; 
-  // na,nb = the two axes of the quarter-circle sweep
   type EdgeDef = { cx: number; cy: number; cz: number; axis: Axis; na: Axis; nb: Axis; aSign: number; bSign: number };
   const edges: EdgeDef[] = [
     // 4 edges along X axis
@@ -289,7 +287,7 @@ const CADViewer = ({
     // Spinning cube — rounded box with small fillet
     const spin = new THREE.Mesh(
       buildRoundedBox(1.8, 0.12, 6),
-      new THREE.MeshStandardMaterial({ color: 0x3b6bca, metalness: 0.2, roughness: 0.3 })
+      new THREE.MeshStandardMaterial({ color: 0x5b8ee6, metalness: 0.2, roughness: 0.3 })
     );
     scene.add(spin);
     spinRef.current = spin;
