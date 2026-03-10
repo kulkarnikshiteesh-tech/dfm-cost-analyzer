@@ -3,7 +3,7 @@ import { OrbitControls, Environment, RoundedBox } from "@react-three/drei";
 import { useRef, Suspense, useEffect, useState, useCallback } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtils";
+import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils";
 
 const BACKEND = "https://threed-backend-4v3g.onrender.com";
 
