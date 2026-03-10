@@ -6,133 +6,6 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
 const BACKEND = "https://threed-backend-4v3g.onrender.com";
 
-// ── Correct rounded box geometry ──────────────────────────────────────────────
-// Single unified vertex buffer. No merging, no CSG.
-// 6 flat face patches + 12 edge cylinder strips + 8 corner sphere patches.
-function buildRoundedBox(size: number, radius: number, segs: number): THREE.BufferGeometry {
-  const pos: number[] = [];
-  const nor: number[] = [];
-  const idx: number[] = [];
-  let vc = 0; // vertex counter
-
-  const h = size / 2 - radius; // half-extent of inner box
-
-  // push one vertex
-  const v = (x: number, y: number, z: number, nx: number, ny: number, nz: number) => {
-    pos.push(x, y, z); nor.push(nx, ny, nz); return vc++;
-  };
-
-  // quad from 4 vertex indices (two triangles)
-  const q = (a: number, b: number, c: number, d: number) => {
-    idx.push(a, b, c, a, c, d);
-  };
-
-  // ── 6 flat face patches ────────────────────────────────────────────────────
-  type Axis = 0 | 1 | 2;
-  const faces: { ax: Axis; sign: number; ua: Axis; va: Axis }[] = [
-    { ax: 0, sign:  1, ua: 2, va: 1 },
-    { ax: 0, sign: -1, ua: 1, va: 2 },
-    { ax: 1, sign:  1, ua: 0, va: 2 },
-    { ax: 1, sign: -1, ua: 2, va: 0 },
-    { ax: 2, sign:  1, ua: 1, va: 0 },
-    { ax: 2, sign: -1, ua: 0, va: 1 },
-  ];
-  for (const { ax, sign, ua, va } of faces) {
-    const base = vc;
-    for (let i = 0; i <= segs; i++) {
-      for (let j = 0; j <= segs; j++) {
-        // Face spans from -h to +h in both u and v directions
-        const pu = -h + 2 * h * i / segs;
-        const pv = -h + 2 * h * j / segs;
-        const p: [number, number, number] = [0, 0, 0];
-        // Face sits at size/2 in the normal axis
-        p[ax] = sign * (h + radius); p[ua] = pu; p[va] = pv;
-        const n: [number, number, number] = [0, 0, 0]; n[ax] = sign;
-        v(p[0], p[1], p[2], n[0], n[1], n[2]);
-      }
-    }
-    for (let i = 0; i < segs; i++) {
-      for (let j = 0; j < segs; j++) {
-        const a = base + i * (segs + 1) + j;
-        q(a, a + 1, a + segs + 2, a + segs + 1);
-      }
-    }
-  }
-
-  // ── 12 edge cylinder strips ────────────────────────────────────────────────
-  type EdgeDef = { cx: number; cy: number; cz: number; axis: Axis; na: Axis; nb: Axis; aSign: number; bSign: number };
-  const edges: EdgeDef[] = [
-    // 4 edges along X axis
-    { cx:0, cy: h, cz: h, axis:0, na:1, nb:2, aSign: 1, bSign: 1 },
-    { cx:0, cy: h, cz:-h, axis:0, na:2, nb:1, aSign:-1, bSign: 1 },
-    { cx:0, cy:-h, cz: h, axis:0, na:2, nb:1, aSign: 1, bSign:-1 },
-    { cx:0, cy:-h, cz:-h, axis:0, na:1, nb:2, aSign:-1, bSign:-1 },
-    // 4 edges along Y axis
-    { cx: h, cy:0, cz: h, axis:1, na:2, nb:0, aSign: 1, bSign: 1 },
-    { cx: h, cy:0, cz:-h, axis:1, na:0, nb:2, aSign:-1, bSign: 1 },
-    { cx:-h, cy:0, cz: h, axis:1, na:0, nb:2, aSign: 1, bSign:-1 },
-    { cx:-h, cy:0, cz:-h, axis:1, na:2, nb:0, aSign:-1, bSign:-1 },
-    // 4 edges along Z axis
-    { cx: h, cy: h, cz:0, axis:2, na:0, nb:1, aSign: 1, bSign: 1 },
-    { cx: h, cy:-h, cz:0, axis:2, na:1, nb:0, aSign:-1, bSign: 1 },
-    { cx:-h, cy: h, cz:0, axis:2, na:1, nb:0, aSign: 1, bSign:-1 },
-    { cx:-h, cy:-h, cz:0, axis:2, na:0, nb:1, aSign:-1, bSign:-1 },
-  ];
-  for (const { cx, cy, cz, axis, na, nb, aSign, bSign } of edges) {
-    const base = vc;
-    for (let i = 0; i <= segs; i++) {         // along edge length
-      const t = -h + 2 * h * i / segs;
-      for (let j = 0; j <= segs; j++) {       // around quarter-circle
-        const angle = (Math.PI / 2) * j / segs;
-        const na_val = aSign * Math.cos(angle);
-        const nb_val = bSign * Math.sin(angle);
-        const p: [number, number, number] = [cx, cy, cz];
-        p[axis] = t;
-        p[na] += radius * na_val;
-        p[nb] += radius * nb_val;
-        v(p[0], p[1], p[2], na_val * aSign, nb_val * bSign,  0);
-        // fix normal — it should point away from edge centre
-        const nx2: [number, number, number] = [0, 0, 0];
-        nx2[na] = na_val; nx2[nb] = nb_val;
-        nor.splice(nor.length - 3, 3, nx2[0], nx2[1], nx2[2]);
-      }
-    }
-    for (let i = 0; i < segs; i++) {
-      for (let j = 0; j < segs; j++) {
-        const a = base + i * (segs + 1) + j;
-        q(a, a + segs + 1, a + segs + 2, a + 1);
-      }
-    }
-  }
-
-  // ── 8 corner sphere patches ────────────────────────────────────────────────
-  for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
-    const base = vc;
-    for (let i = 0; i <= segs; i++) {
-      const phi = (Math.PI / 2) * i / segs;
-      for (let j = 0; j <= segs; j++) {
-        const theta = (Math.PI / 2) * j / segs;
-        const nx2 = sx * Math.cos(phi) * Math.cos(theta);
-        const ny2 = sy * Math.sin(phi);
-        const nz2 = sz * Math.cos(phi) * Math.sin(theta);
-        v(sx * h + nx2 * radius, sy * h + ny2 * radius, sz * h + nz2 * radius, nx2, ny2, nz2);
-      }
-    }
-    for (let i = 0; i < segs; i++) {
-      for (let j = 0; j < segs; j++) {
-        const a = base + i * (segs + 1) + j;
-        q(a, a + segs + 1, a + segs + 2, a + 1);
-      }
-    }
-  }
-
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute("normal",   new THREE.Float32BufferAttribute(nor, 3));
-  geo.setIndex(idx);
-  return geo;
-}
-
 
 
 function paintScene(model: THREE.Object3D, r: number, g: number, b: number) {
@@ -284,9 +157,9 @@ const CADViewer = ({
     rim.position.set(1, -5, -7);
     scene.add(rim);
 
-    // Spinning cube — rounded box with small fillet
+    // Spinning cube placeholder
     const spin = new THREE.Mesh(
-      buildRoundedBox(1.8, 0.12, 6),
+      new THREE.BoxGeometry(1.8, 1.8, 1.8),
       new THREE.MeshStandardMaterial({ color: 0x5b8ee6, metalness: 0.2, roughness: 0.3 })
     );
     scene.add(spin);
