@@ -6,20 +6,22 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
 const BACKEND = "https://threed-backend-4v3g.onrender.com";
 
-// ── Spinning cube ─────────────────────────────────────────────────────────────
-function SpinningCube() {
-  const meshRef = useRef<any>(null);
-  useFrame((_, delta) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.x += delta * 0.3;
-      meshRef.current.rotation.y += delta * 0.5;
-    }
-  });
-  return (
-    <RoundedBox ref={meshRef} args={[1.8, 1.8, 1.8]} radius={0.15} smoothness={4}>
-      <meshStandardMaterial color="#3b6bca" metalness={0.2} roughness={0.3} />
-    </RoundedBox>
-  );
+// ── Rounded cube via superellipsoid mapping ───────────────────────────────────
+// Maps a sphere surface through superellipsoid — genuine box-with-rounded-edges
+// that catches directional light beautifully. power=5 = tight radius, power=3 = looser.
+function createRoundedCubeGeometry(segments = 64, power = 4.5): THREE.BufferGeometry {
+  const geo = new THREE.SphereGeometry(1.1, segments, segments);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const p = 2 / power;
+    const sx = Math.sign(x) * Math.pow(Math.abs(x), p);
+    const sy = Math.sign(y) * Math.pow(Math.abs(y), p);
+    const sz = Math.sign(z) * Math.pow(Math.abs(z), p);
+    pos.setXYZ(i, sx, sy, sz);
+  }
+  geo.computeVertexNormals();
+  return geo;
 }
 
 // ── Paint entire model a solid colour ────────────────────────────────────────
@@ -159,19 +161,34 @@ const CADViewer = ({
     camera.position.set(3, 3, 3);
     cameraRef.current = camera;
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-    const dir1 = new THREE.DirectionalLight(0xffffff, 0.6);
-    dir1.position.set(5, 8, 5);
-    scene.add(dir1);
-    const dir2 = new THREE.DirectionalLight(0xffffff, 0.1);
-    dir2.position.set(-4, -4, -4);
-    scene.add(dir2);
+    // Studio lighting — CAD render quality
+    scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+    // Hemisphere light — warm ground, cool sky — gives natural bounce
+    scene.add(new THREE.HemisphereLight(0xddeeff, 0xfff4e0, 0.5));
+    // Key light — main illumination from upper left
+    const key = new THREE.DirectionalLight(0xffffff, 1.4);
+    key.position.set(5, 9, 6);
+    scene.add(key);
+    // Fill light — soft blue from opposite side
+    const fill = new THREE.DirectionalLight(0xc8d8f8, 0.45);
+    fill.position.set(-7, 2, -3);
+    scene.add(fill);
+    // Rim light — subtle back-light to separate from background
+    const rim = new THREE.DirectionalLight(0xffffff, 0.25);
+    rim.position.set(1, -5, -7);
+    scene.add(rim);
 
-    // Spinning cube placeholder
-    const spin = new THREE.Mesh(
-      new THREE.BoxGeometry(1.8, 1.8, 1.8),
-      new THREE.MeshStandardMaterial({ color: 0x3b6bca, metalness: 0.2, roughness: 0.3 })
-    );
+    // Premium spinning placeholder — superellipsoid rounded cube
+    const spinGeo = createRoundedCubeGeometry(64, 4.5);
+    const spinMat = new THREE.MeshPhysicalMaterial({
+      color: 0x3b6bca,
+      metalness: 0.55,
+      roughness: 0.12,
+      reflectivity: 0.9,
+      clearcoat: 0.4,
+      clearcoatRoughness: 0.1,
+    });
+    const spin = new THREE.Mesh(spinGeo, spinMat);
     scene.add(spin);
     spinRef.current = spin;
 
@@ -245,11 +262,20 @@ const CADViewer = ({
       // Always reset to solid blue first (overrides any baked orange from backend)
       paintScene(model, 0.23, 0.42, 0.79);
 
+      // CAD-render quality shader — MeshPhysicalMaterial with clearcoat
       model.traverse((child: any) => {
-        if (child.isMesh) {
-          child.material.metalness = 0.1;
-          child.material.roughness = 0.4;
-        }
+        if (!child.isMesh) return;
+        const oldMat = child.material;
+        child.material = new THREE.MeshPhysicalMaterial({
+          vertexColors: true,
+          metalness: 0.15,
+          roughness: 0.25,
+          reflectivity: 0.8,
+          clearcoat: 0.5,
+          clearcoatRoughness: 0.1,
+          envMapIntensity: 0.8,
+        });
+        if (oldMat) oldMat.dispose();
       });
 
       scene.add(model);
