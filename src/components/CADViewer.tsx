@@ -1,10 +1,12 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Environment, RoundedBox, useGLTF } from "@react-three/drei";
-import { useRef, Suspense, useEffect, useState, useCallback } from "react";import * as THREE from "three";
+import { OrbitControls, Environment, RoundedBox } from "@react-three/drei";
+import { useRef, Suspense, useEffect, useState, useCallback } from "react";
+import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
 const BACKEND = "https://threed-backend-4v3g.onrender.com";
 
-// ── Spinning cube (empty state) ───────────────────────────────────────────────
+// ── Spinning cube ─────────────────────────────────────────────────────────────
 function SpinningCube() {
   const meshRef = useRef<any>(null);
   useFrame((_, delta) => {
@@ -20,120 +22,95 @@ function SpinningCube() {
   );
 }
 
-// ── Highlight mesh overlay on clicked face group ──────────────────────────────
-// We shoot a second rayCast-derived normal and colour faces whose normal is
-// within ~15° of the clicked normal — this groups co-planar triangles together
-// so the highlight is visible as a whole face, not a single triangle.
-function applyFaceHighlight(scene: THREE.Object3D, clickedNormal: THREE.Vector3 | null) {
-  const DOT_THRESHOLD = 0.97; // ~cos(14°) — faces within 14° of clicked normal
-  scene.traverse((child: any) => {
+// ── Paint entire model a solid colour ────────────────────────────────────────
+function paintScene(model: THREE.Object3D, r: number, g: number, b: number) {
+  model.traverse((child: any) => {
     if (!child.isMesh || !child.geometry) return;
-    const geo = child.geometry;
-    const posAttr = geo.attributes.position;
-    const normalAttr = geo.attributes.normal;
-    if (!posAttr || !normalAttr) return;
-
-    const count = posAttr.count;
+    const count  = child.geometry.attributes.position.count;
     const colors = new Float32Array(count * 3);
-
     for (let i = 0; i < count; i++) {
-      let highlight = false;
-      if (clickedNormal) {
-        const nx = normalAttr.getX(i);
-        const ny = normalAttr.getY(i);
-        const nz = normalAttr.getZ(i);
-        const vn = new THREE.Vector3(nx, ny, nz)
-          .transformDirection(child.matrixWorld)
-          .normalize();
-        const dot = vn.dot(clickedNormal);
-        highlight = dot > DOT_THRESHOLD;
-      }
-      if (highlight) {
-        // Yellow highlight
-        colors[i * 3]     = 1.0;
-        colors[i * 3 + 1] = 0.85;
-        colors[i * 3 + 2] = 0.0;
-      } else {
-        // Default blue
-        colors[i * 3]     = 0.23;
-        colors[i * 3 + 1] = 0.42;
-        colors[i * 3 + 2] = 0.79;
+      colors[i * 3] = r; colors[i * 3 + 1] = g; colors[i * 3 + 2] = b;
+    }
+    child.geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    child.material.vertexColors = true;
+    child.material.needsUpdate  = true;
+  });
+}
+
+// ── Highlight the face group best matching clickedNormal ──────────────────────
+// Strategy:
+//   1. Compute average normal per triangle
+//   2. Among all triangles, find the one whose normal is closest to clickedNormal
+//      — this snaps to the dominant plane even if the ray hits a tiny chamfer
+//   3. Highlight all triangles within 5° of that best-match normal (tight group)
+function highlightFaceGroup(model: THREE.Object3D, clickedNormal: THREE.Vector3) {
+  model.traverse((child: any) => {
+    if (!child.isMesh || !child.geometry) return;
+    const geo      = child.geometry;
+    const normAttr = geo.attributes.normal;
+    const posAttr  = geo.attributes.position;
+    if (!posAttr || !normAttr) return;
+
+    const vertCount = posAttr.count;
+    const triCount  = Math.floor(vertCount / 3);
+
+    // Step 1 — per-triangle world-space normals
+    const triNormals: THREE.Vector3[] = [];
+    for (let t = 0; t < triCount; t++) {
+      const i  = t * 3;
+      const nx = (normAttr.getX(i) + normAttr.getX(i+1) + normAttr.getX(i+2)) / 3;
+      const ny = (normAttr.getY(i) + normAttr.getY(i+1) + normAttr.getY(i+2)) / 3;
+      const nz = (normAttr.getZ(i) + normAttr.getZ(i+1) + normAttr.getZ(i+2)) / 3;
+      triNormals.push(
+        new THREE.Vector3(nx, ny, nz).transformDirection(child.matrixWorld).normalize()
+      );
+    }
+
+    // Step 2 — find triangle with normal closest to clickedNormal
+    let bestDot    = -Infinity;
+    let bestNormal = clickedNormal.clone();
+    for (const tn of triNormals) {
+      const d = tn.dot(clickedNormal);
+      if (d > bestDot) { bestDot = d; bestNormal = tn.clone(); }
+    }
+
+    // Step 3 — highlight all triangles within ~5° of bestNormal (cos5° ≈ 0.996)
+    const TIGHT   = 0.996;
+    const colors  = new Float32Array(vertCount * 3);
+    for (let t = 0; t < triCount; t++) {
+      const match = triNormals[t].dot(bestNormal) > TIGHT;
+      for (let v = 0; v < 3; v++) {
+        const idx = (t * 3 + v);
+        if (match) {
+          colors[idx*3]=1.0; colors[idx*3+1]=0.85; colors[idx*3+2]=0.0; // yellow
+        } else {
+          colors[idx*3]=0.23; colors[idx*3+1]=0.42; colors[idx*3+2]=0.79; // blue
+        }
       }
     }
     geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     child.material.vertexColors = true;
-    child.material.needsUpdate = true;
+    child.material.needsUpdate  = true;
   });
-}
-
-// ── GLB model ─────────────────────────────────────────────────────────────────
-function GLBModel({
-  url,
-  onFaceClick,
-  highlightNormal,
-}: {
-  url: string;
-  onFaceClick: (normal: THREE.Vector3) => void;
-  highlightNormal: THREE.Vector3 | null;
-}) {
-  const { scene } = useGLTF(url, true);
-
-  // Scale + centre on first load, and reset vertex colours to default blue
-  // (backend GLBs may have orange undercut colours baked in — we override them)
-  useEffect(() => {
-    scene.traverse((child: any) => {
-      if (child.isMesh) {
-        child.material = child.material.clone();
-        child.material.metalness = 0.1;
-        child.material.roughness = 0.4;
-      }
-    });
-    const box = new THREE.Box3().setFromObject(scene);
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const scale = 3 / maxDim;
-    scene.scale.setScalar(scale);
-    const center = box.getCenter(new THREE.Vector3());
-    scene.position.sub(center.multiplyScalar(scale));
-    // Always reset to blue on load — applyFaceHighlight will re-apply if needed
-    applyFaceHighlight(scene, highlightNormal);
-  }, [scene]);
-
-  // Apply highlight whenever highlightNormal changes
-  useEffect(() => {
-    applyFaceHighlight(scene, highlightNormal);
-  }, [scene, highlightNormal]);
-
-  const handleClick = useCallback((e: any) => {
-    e.stopPropagation();
-    if (e.face && e.object) {
-      const normal = e.face.normal.clone();
-      normal.transformDirection(e.object.matrixWorld).normalize();
-      onFaceClick(normal);
-    }
-  }, [onFaceClick]);
-
-  return <primitive object={scene} onClick={handleClick} />;
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface AnalysisResult {
-  glb_url: string;
-  volume_cubic_mm: number;
-  bounding_box_mm: { x: number; y: number; z: number };
-  has_undercuts: boolean;
+  glb_url:          string;
+  volume_cubic_mm:  number;
+  bounding_box_mm:  { x: number; y: number; z: number };
+  has_undercuts:    boolean;
   undercut_severity: string;
   undercut_message: string;
 }
 
 interface CADViewerProps {
-  glbUrl?: string | null;
-  uploadGlbFilename?: string | null;
-  selectionMode?: boolean;
-  onAnalysisResult?: (result: AnalysisResult, faceNormal: { x: number; y: number; z: number }) => void;
-  onFaceConfirmed?: () => void;
-  onTryAnother?: () => void;
-  analysisComplete?: boolean;
+  glbUrl?:             string | null;
+  uploadGlbFilename?:  string | null;
+  selectionMode?:      boolean;
+  onAnalysisResult?:   (result: AnalysisResult) => void;
+  onFaceConfirmed?:    () => void;
+  onTryAnother?:       () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -144,72 +121,209 @@ const CADViewer = ({
   onAnalysisResult,
   onFaceConfirmed,
   onTryAnother,
-  analysisComplete = false,
 }: CADViewerProps) => {
-  // The GLB shown in the viewer — starts as uploadGlb, updated after each analysis
-  const [viewerGlbUrl, setViewerGlbUrl] = useState<string | null>(null);
-  const [highlightNormal, setHighlightNormal] = useState<THREE.Vector3 | null>(null);
-  const [pendingNormal, setPendingNormal] = useState<THREE.Vector3 | null>(null);
-  const [analysing, setAnalysing] = useState(false);
-  const [latestResult, setLatestResult] = useState<AnalysisResult | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
+  const mountRef        = useRef<HTMLDivElement>(null);
+  const rendererRef     = useRef<THREE.WebGLRenderer | null>(null);
+  const threeSceneRef   = useRef<THREE.Scene | null>(null);
+  const cameraRef       = useRef<THREE.PerspectiveCamera | null>(null);
+  const modelRef        = useRef<THREE.Object3D | null>(null);
+  const controlsRef     = useRef<any>(null);
+  const originalGlbUrl  = useRef<string | null>(null);
+  const animFrameRef    = useRef<number>(0);
+  const spinRef         = useRef<THREE.Mesh | null>(null);
+  const spinActiveRef   = useRef(true);
 
-  // Keep a stable ref to the original upload GLB URL
-  // so we can restore it when user clicks "Try another face"
-  const originalGlbUrl = useRef<string | null>(null);
+  const [pendingNormal, setPendingNormal]   = useState<THREE.Vector3 | null>(null);
+  const [analysing,     setAnalysing]       = useState(false);
+  const [latestResult,  setLatestResult]    = useState<AnalysisResult | null>(null);
+  const [confirmed,     setConfirmed]       = useState(false);
+  const [hasModel,      setHasModel]        = useState(false);
 
-  // Only reset ALL state on a genuinely new upload (filename changes)
+  // ── Bootstrap Three.js once ──────────────────────────────────────────────
   useEffect(() => {
-    originalGlbUrl.current = glbUrl ?? null;
-    setViewerGlbUrl(glbUrl ?? null);
-    setHighlightNormal(null);
+    const mount = mountRef.current!;
+    const w = mount.clientWidth || 800;
+    const h = mount.clientHeight || 600;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(w, h);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    mount.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+
+    const scene = new THREE.Scene();
+    threeSceneRef.current = scene;
+
+    const camera = new THREE.PerspectiveCamera(45, w / h, 0.01, 1000);
+    camera.position.set(3, 3, 3);
+    cameraRef.current = camera;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    const dir1 = new THREE.DirectionalLight(0xffffff, 0.6);
+    dir1.position.set(5, 8, 5);
+    scene.add(dir1);
+    const dir2 = new THREE.DirectionalLight(0xffffff, 0.1);
+    dir2.position.set(-4, -4, -4);
+    scene.add(dir2);
+
+    // Spinning cube placeholder
+    const spin = new THREE.Mesh(
+      new THREE.BoxGeometry(1.8, 1.8, 1.8),
+      new THREE.MeshStandardMaterial({ color: 0x3b6bca, metalness: 0.2, roughness: 0.3 })
+    );
+    scene.add(spin);
+    spinRef.current = spin;
+
+    // OrbitControls
+    import("three/examples/jsm/controls/OrbitControls").then(({ OrbitControls }) => {
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping  = true;
+      controls.dampingFactor  = 0.06;
+      controlsRef.current     = controls;
+    });
+
+    // Resize
+    const onResize = () => {
+      const w2 = mount.clientWidth, h2 = mount.clientHeight;
+      renderer.setSize(w2, h2);
+      camera.aspect = w2 / h2;
+      camera.updateProjectionMatrix();
+    };
+    window.addEventListener("resize", onResize);
+
+    // Render loop
+    const animate = () => {
+      animFrameRef.current = requestAnimationFrame(animate);
+      if (spinActiveRef.current && spinRef.current) {
+        spinRef.current.rotation.x += 0.005;
+        spinRef.current.rotation.y += 0.008;
+      }
+      controlsRef.current?.update();
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    return () => {
+      cancelAnimationFrame(animFrameRef.current);
+      window.removeEventListener("resize", onResize);
+      controlsRef.current?.dispose();
+      renderer.dispose();
+      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
+    };
+  }, []);
+
+  // ── Imperative GLB loader — no useGLTF cache ─────────────────────────────
+  const loadGlb = useCallback((url: string, onLoaded?: (model: THREE.Object3D) => void) => {
+    const scene = threeSceneRef.current!;
+
+    // Remove previous model
+    if (modelRef.current) {
+      scene.remove(modelRef.current);
+      modelRef.current = null;
+    }
+
+    // Hide spinner
+    if (spinRef.current) {
+      spinActiveRef.current = false;
+      spinRef.current.visible = false;
+    }
+
+    const loader = new GLTFLoader();
+    loader.load(url, (gltf) => {
+      const model = gltf.scene;
+
+      // Scale + centre
+      const box    = new THREE.Box3().setFromObject(model);
+      const size   = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale  = 3 / maxDim;
+      model.scale.setScalar(scale);
+      const center = box.getCenter(new THREE.Vector3());
+      model.position.sub(center.multiplyScalar(scale));
+
+      // Always reset to solid blue first (overrides any baked orange from backend)
+      paintScene(model, 0.23, 0.42, 0.79);
+
+      model.traverse((child: any) => {
+        if (child.isMesh) {
+          child.material.metalness = 0.1;
+          child.material.roughness = 0.4;
+        }
+      });
+
+      scene.add(model);
+      modelRef.current = model;
+      setHasModel(true);
+
+      onLoaded?.(model);
+    }, undefined, (err) => {
+      console.error("GLB load error:", err);
+    });
+  }, []);
+
+  // ── Load on new upload ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!glbUrl) return;
+    originalGlbUrl.current = glbUrl;
     setPendingNormal(null);
-    setAnalysing(false);
     setLatestResult(null);
     setConfirmed(false);
+    loadGlb(glbUrl);
   }, [uploadGlbFilename]);
 
-  // Re-enter selection mode (user went back or changed face)
-  useEffect(() => {
-    if (selectionMode) {
-      setHighlightNormal(null);
-      setPendingNormal(null);
-      setLatestResult(null);
-      setConfirmed(false);
-    }
-  }, [selectionMode]);
+  // ── Canvas click → raycast → highlight ───────────────────────────────────
+  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!selectionMode || confirmed || analysing || !modelRef.current) return;
 
-  const handleFaceClick = useCallback((normal: THREE.Vector3) => {
-    if (!selectionMode || confirmed || analysing) return;
-    // Apply highlight immediately
-    setHighlightNormal(normal.clone());
-    setPendingNormal(normal.clone());
-    setLatestResult(null); // clear old result when new face selected
+    // Don't register clicks on the overlay cards
+    if ((e.target as HTMLElement).closest("[data-overlay]")) return;
+
+    const mount  = mountRef.current!;
+    const rect   = mount.getBoundingClientRect();
+    const mouse  = new THREE.Vector2(
+      ((e.clientX - rect.left) / rect.width)  *  2 - 1,
+      ((e.clientY - rect.top)  / rect.height) * -2 + 1,
+    );
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, cameraRef.current!);
+    const hits = raycaster.intersectObject(modelRef.current, true);
+
+    if (hits.length > 0) {
+      const hit    = hits[0];
+      const normal = hit.face!.normal.clone()
+        .transformDirection(hit.object.matrixWorld).normalize();
+
+      setPendingNormal(normal);
+      setLatestResult(null);
+
+      // Highlight the face group immediately
+      highlightFaceGroup(modelRef.current!, normal);
+    }
   }, [selectionMode, confirmed, analysing]);
 
+  // ── Analyse ───────────────────────────────────────────────────────────────
   const handleAnalyse = async () => {
     if (!pendingNormal || !uploadGlbFilename) return;
     setAnalysing(true);
     try {
       const res = await fetch(`${BACKEND}/reanalyze`, {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          glb_filename: uploadGlbFilename,
+        body:    JSON.stringify({
+          glb_filename:   uploadGlbFilename,
           pull_direction: { x: pendingNormal.x, y: pendingNormal.y, z: pendingNormal.z },
         }),
       });
       if (res.ok) {
         const data: AnalysisResult = await res.json();
-        if (data.glb_url?.startsWith("/static/")) {
-          data.glb_url = BACKEND + data.glb_url;
-        }
-        // Update viewer to coloured GLB from backend, but keep highlight off
-        // (backend GLB already has undercut colours)
-        setViewerGlbUrl(data.glb_url);
-        setHighlightNormal(null); // backend colouring takes over
+        if (data.glb_url?.startsWith("/static/")) data.glb_url = BACKEND + data.glb_url;
+
+        // Load coloured analysis GLB — paintScene resets to blue, then backend colours show
+        loadGlb(`${data.glb_url}?t=${Date.now()}`);
         setLatestResult(data);
-        onAnalysisResult?.(data, { x: pendingNormal.x, y: pendingNormal.y, z: pendingNormal.z });
+        onAnalysisResult?.(data);
       }
     } catch (err) {
       console.error("Analyse error:", err);
@@ -218,50 +332,58 @@ const CADViewer = ({
     }
   };
 
-  const handleTryAnother = () => {
-    // Clear cached analysis GLB from Three.js so it doesn't bleed into next load
-    if (viewerGlbUrl) useGLTF.clear(viewerGlbUrl);
-    // Restore original clean upload GLB from ref, bust cache so Three.js reloads it
-    const base = originalGlbUrl.current?.split("?")[0] ?? null;
-    setViewerGlbUrl(base ? `${base}?t=${Date.now()}` : null);
-    setHighlightNormal(null);
+  // ── Try another face ──────────────────────────────────────────────────────
+  const handleTryAnother = useCallback(() => {
+    const base = originalGlbUrl.current?.split("?")[0];
+    if (base) loadGlb(`${base}?t=${Date.now()}`);
     setPendingNormal(null);
     setLatestResult(null);
     setConfirmed(false);
     onTryAnother?.();
-  };
+  }, [loadGlb, onTryAnother]);
 
+  // ── Confirm ───────────────────────────────────────────────────────────────
   const handleConfirm = () => {
     setConfirmed(true);
-    setHighlightNormal(null);
     onFaceConfirmed?.();
   };
 
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ background: "#f5f4f0" }}>
 
+      {/* Three.js canvas mount */}
+      <div
+        ref={mountRef}
+        className="absolute inset-0"
+        onClick={handleCanvasClick}
+        style={{ cursor: selectionMode && !confirmed ? "crosshair" : "default" }}
+      />
+
       {/* Badge */}
-      <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-lg border border-[#e0deda] bg-white/90 px-3 py-1.5 backdrop-blur-sm shadow-sm">
+      <div
+        data-overlay
+        className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-lg border border-[#e0deda] bg-white/90 px-3 py-1.5 backdrop-blur-sm shadow-sm pointer-events-none"
+      >
         <div className="h-1.5 w-1.5 rounded-full bg-[#4caf72] animate-pulse" />
         <span className="text-[10px] font-semibold uppercase tracking-widest text-[#9a9a9e]">3D Preview</span>
       </div>
 
       {/* Prompt — waiting for face click */}
-      {selectionMode && !pendingNormal && !analysing && !confirmed && viewerGlbUrl && (
-        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
+      {selectionMode && !pendingNormal && !analysing && !confirmed && hasModel && (
+        <div data-overlay className="absolute top-4 left-1/2 z-10 -translate-x-1/2 pointer-events-none">
           <div className="rounded-xl border border-[#e0a020]/50 bg-white/95 px-5 py-3 text-center shadow-lg backdrop-blur-sm">
             <p className="text-xs font-semibold text-[#c08010]">Select Top / Bottom face</p>
-            <p className="mt-1 text-[10px] text-[#9a9a9e]">Click a face — highlighted in yellow, then analyse</p>
+            <p className="mt-1 text-[10px] text-[#9a9a9e]">Click a face — it highlights yellow, then analyse</p>
           </div>
         </div>
       )}
 
-      {/* Face highlighted — show Analyse + Cancel */}
+      {/* Face highlighted — Analyse + Cancel */}
       {selectionMode && pendingNormal && !analysing && !latestResult && !confirmed && (
-        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
+        <div data-overlay className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
           <div className="rounded-xl border border-[#e0deda] bg-white/98 px-5 py-4 shadow-lg backdrop-blur-sm text-center">
             <p className="text-[10px] uppercase tracking-widest text-[#9a9a9e] mb-1">Face selected</p>
-            <p className="text-xs text-[#6a6a6e] mb-3">Yellow face highlighted — analyse to see undercut % and cost</p>
+            <p className="text-xs text-[#6a6a6e] mb-3">Yellow face highlighted — click Analyse to check undercuts</p>
             <div className="flex gap-2">
               <button
                 onClick={handleAnalyse}
@@ -282,7 +404,7 @@ const CADViewer = ({
 
       {/* Analysing spinner */}
       {analysing && (
-        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
+        <div data-overlay className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
           <div className="flex items-center gap-2.5 rounded-xl border border-[#e0deda] bg-white/98 px-5 py-3 shadow-lg backdrop-blur-sm">
             <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#3b6bca] border-t-transparent" />
             <span className="text-[11px] font-semibold text-[#6a6a6e]">Analysing…</span>
@@ -290,11 +412,10 @@ const CADViewer = ({
         </div>
       )}
 
-      {/* Result — "Accept as Top / Bottom face?" */}
+      {/* Result — Accept as Top / Bottom face? */}
       {latestResult && !analysing && !confirmed && (
-        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2 w-80">
+        <div data-overlay className="absolute top-4 left-1/2 z-10 -translate-x-1/2 w-80">
           <div className="rounded-xl border border-[#e0deda] bg-white/98 px-5 py-4 shadow-lg backdrop-blur-sm">
-
             <div className={`rounded-lg px-3 py-2 mb-3 ${
               latestResult.has_undercuts
                 ? latestResult.undercut_severity === "high"
@@ -308,15 +429,16 @@ const CADViewer = ({
                   : "text-[#16a34a]"
               }`}>
                 {latestResult.has_undercuts
-                  ? latestResult.undercut_severity === "high" ? "⚠ High undercut risk" : "⚠ Moderate undercut risk"
-                  : "✓ No undercut risk"
-                }
+                  ? latestResult.undercut_severity === "high"
+                    ? "⚠ High undercut risk" : "⚠ Moderate undercut risk"
+                  : "✓ No undercut risk"}
               </p>
               <p className="text-[10px] text-[#6a6a6e] mt-0.5 leading-snug">{latestResult.undercut_message}</p>
               <p className="text-[10px] text-[#9a9a9e] mt-1 italic">Cost bar updated for this face</p>
             </div>
-
-            <p className="text-[11px] font-bold text-[#1a1a1c] text-center mb-2">Accept as Top / Bottom face?</p>
+            <p className="text-[11px] font-bold text-[#1a1a1c] text-center mb-2">
+              Accept as Top / Bottom face?
+            </p>
             <div className="flex gap-2">
               <button
                 onClick={handleConfirm}
@@ -337,7 +459,7 @@ const CADViewer = ({
 
       {/* Confirmed */}
       {confirmed && (
-        <div className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
+        <div data-overlay className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
           <div className="flex items-center gap-2.5 rounded-xl border border-[#c8ecd0] bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur-sm">
             <span className="text-[#4caf72]">✓</span>
             <span className="text-[11px] font-semibold text-[#4caf72]">Top / Bottom face confirmed</span>
@@ -350,20 +472,6 @@ const CADViewer = ({
           </div>
         </div>
       )}
-
-      <Canvas camera={{ position: [3, 3, 3], fov: 45 }} style={{ background: "transparent" }}>
-        <ambientLight intensity={0.7} />
-        <directionalLight position={[5, 8, 5]} intensity={0.6} />
-        <directionalLight position={[-4, -4, -4]} intensity={0.1} />
-        <Suspense fallback={null}>
-          {viewerGlbUrl
-            ? <GLBModel url={viewerGlbUrl} onFaceClick={handleFaceClick} highlightNormal={highlightNormal} />
-            : <SpinningCube />
-          }
-        </Suspense>
-        <OrbitControls enableDamping dampingFactor={0.06} />
-        <Environment preset="city" environmentIntensity={0.4} />
-      </Canvas>
     </div>
   );
 };
