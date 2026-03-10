@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { X, FileText } from "lucide-react";
+import { X } from "lucide-react";
 
 const MATERIALS: Record<string, { density: number; pricePerKg: number; label: string; notes: string }> = {
   ABS:   { density: 1.05, pricePerKg: 120, label: "ABS",            notes: "General purpose, indoor, good surface finish" },
@@ -45,6 +44,7 @@ interface ReportModalProps {
   hasUndercuts?: boolean | null;
   undercutSeverity?: string | null;
   undercutMessage?: string | null;
+  onClose: () => void;
 }
 
 export default function ReportModal({
@@ -55,8 +55,8 @@ export default function ReportModal({
   hasUndercuts,
   undercutSeverity,
   undercutMessage,
+  onClose,
 }: ReportModalProps) {
-  const [open, setOpen] = useState(false);
 
   // ── Calculations ────────────────────────────────────────────────────────────
   const tier = getMoldTier(quantity);
@@ -86,31 +86,19 @@ export default function ReportModal({
   const fmt = (n: number) => Math.round(n).toLocaleString("en-IN");
 
   return (
-    <>
-      {/* Trigger button */}
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 rounded-lg border border-[#e0deda] px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#6a6a6e] hover:bg-[#f0ede8] transition-colors"
-      >
-        <FileText className="h-3 w-3" />
-        Read complete report
-      </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.4)" }}>
+      <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[#e0deda] bg-white shadow-2xl" style={{ scrollbarWidth: "none" }}>
 
-      {/* Modal */}
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.4)" }}>
-          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-[#e0deda] bg-white shadow-2xl" style={{ scrollbarWidth: "none" }}>
-
-            {/* Header */}
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#e0deda] bg-white px-6 py-4">
-              <div>
-                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#9a9a9e]">Makeable</p>
-                <p className="text-base font-black text-[#1a1a1c]">Cost Analysis Report</p>
-              </div>
-              <button onClick={() => setOpen(false)} className="rounded-full p-1.5 hover:bg-[#f0ede8] transition-colors">
-                <X className="h-4 w-4 text-[#6a6a6e]" />
-              </button>
-            </div>
+        {/* Header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#e0deda] bg-white px-6 py-4">
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#9a9a9e]">Makeable</p>
+            <p className="text-base font-black text-[#1a1a1c]">Cost Analysis Report</p>
+          </div>
+          <button onClick={onClose} className="rounded-full p-1.5 hover:bg-[#f0ede8] transition-colors">
+            <X className="h-4 w-4 text-[#6a6a6e]" />
+          </button>
+        </div>
 
             <div className="px-6 py-5 space-y-6">
 
@@ -313,7 +301,5 @@ export default function ReportModal({
             </div>
           </div>
         </div>
-      )}
-    </>
   );
 }

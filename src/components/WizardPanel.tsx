@@ -4,79 +4,130 @@ import { toast } from "sonner";
 
 const BACKEND = "https://threed-backend-4v3g.onrender.com";
 
-// ── Material recommendation engine ───────────────────────────────────────────
+// ── Material database ─────────────────────────────────────────────────────────
 
-interface Answers {
-  partType: string;
-  flexible: string;
-  environment: string;
-  priority: string;
-}
-
-const MATERIAL_RULES: Array<{
+interface MaterialProfile {
   id: string;
   label: string;
-  reason: string;
-  match: (a: Answers) => boolean;
-}> = [
-  {
-    id: "TPU",
-    label: "TPU",
-    reason: "Flexible snap-fit parts need TPU — it recovers after deformation and absorbs impact.",
-    match: (a) => a.flexible === "flex-snap",
-  },
-  {
-    id: "TPE",
-    label: "TPE",
-    reason: "Soft-touch grips and overmolds are best in TPE — rubber feel, easy to process.",
-    match: (a) => a.flexible === "soft-touch",
-  },
-  {
-    id: "PC",
-    label: "Polycarbonate (PC)",
-    reason: "Outdoor UV exposure with impact resistance is where PC excels.",
-    match: (a) => a.flexible === "rigid" && a.environment === "outdoor" && a.priority === "impact",
-  },
-  {
-    id: "Nylon",
-    label: "Nylon PA6",
-    reason: "Mechanical and structural parts with wear resistance need Nylon — strong and durable.",
-    match: (a) => a.flexible === "rigid" && (a.partType === "mechanical" || a.priority === "stiffness"),
-  },
-  {
-    id: "PC",
-    label: "Polycarbonate (PC)",
-    reason: "High heat environments (>60°C) need PC — ABS warps above 80°C.",
-    match: (a) => a.flexible === "rigid" && a.environment === "high-heat",
-  },
-  {
-    id: "PP",
-    label: "PP",
-    reason: "Chemical and moisture contact is where PP shines — excellent resistance at low cost.",
-    match: (a) => a.flexible === "rigid" && (a.environment === "chemical" || a.priority === "food-safe"),
-  },
-  {
-    id: "ABS",
-    label: "ABS",
-    reason: "Indoor enclosure with good surface finish at low cost — ABS is the ideal choice.",
-    match: (a) => a.flexible === "rigid" && a.environment === "indoor" && (a.priority === "cost" || a.priority === "finish"),
-  },
-  {
-    id: "HIPS",
-    label: "HIPS",
-    reason: "For prototypes and non-structural indoor parts, HIPS gives the lowest material cost.",
-    match: (a) => a.flexible === "rigid" && a.partType === "prototype",
-  },
-  {
-    id: "ABS",
-    label: "ABS",
-    reason: "ABS is the most versatile general-purpose engineering plastic — a safe default.",
-    match: () => true,
-  },
+  tagline: string;
+  density: number;   // g/cm³
+  pricePerKg: number; // ₹
+  scores: {
+    impact: number;       // 0–3
+    stiffness: number;
+    finish: number;
+    heatResist: number;
+    chemResist: number;
+    uvResist: number;
+    foodSafe: number;
+    costEfficiency: number;
+    flexibility: number;
+    softTouch: number;
+  };
+}
+
+const MATERIALS: MaterialProfile[] = [
+  { id: "ABS",    label: "ABS",              tagline: "Best all-rounder for enclosures",         density: 1.05, pricePerKg: 120,
+    scores: { impact:2, stiffness:2, finish:3, heatResist:1, chemResist:1, uvResist:0, foodSafe:0, costEfficiency:3, flexibility:0, softTouch:0 } },
+  { id: "PP",     label: "PP",               tagline: "Lightest, chemical-resistant, food-safe", density: 0.91, pricePerKg: 95,
+    scores: { impact:2, stiffness:1, finish:2, heatResist:1, chemResist:3, uvResist:1, foodSafe:3, costEfficiency:3, flexibility:1, softTouch:0 } },
+  { id: "Nylon",  label: "Nylon PA6",        tagline: "Strongest for mechanical parts",          density: 1.14, pricePerKg: 200,
+    scores: { impact:3, stiffness:3, finish:2, heatResist:2, chemResist:2, uvResist:0, foodSafe:0, costEfficiency:1, flexibility:0, softTouch:0 } },
+  { id: "PC",     label: "Polycarbonate",    tagline: "Transparent, tough, heat-resistant",      density: 1.20, pricePerKg: 280,
+    scores: { impact:3, stiffness:2, finish:3, heatResist:3, chemResist:1, uvResist:2, foodSafe:0, costEfficiency:1, flexibility:0, softTouch:0 } },
+  { id: "HIPS",   label: "HIPS",             tagline: "Cheapest rigid plastic, easy to paint",   density: 1.05, pricePerKg: 90,
+    scores: { impact:1, stiffness:1, finish:2, heatResist:0, chemResist:0, uvResist:0, foodSafe:0, costEfficiency:3, flexibility:0, softTouch:0 } },
+  { id: "TPU",    label: "TPU",              tagline: "Flexible, snaps back, absorbs impact",    density: 1.20, pricePerKg: 200,
+    scores: { impact:3, stiffness:0, finish:2, heatResist:1, chemResist:2, uvResist:1, foodSafe:0, costEfficiency:1, flexibility:3, softTouch:1 } },
+  { id: "TPE",    label: "TPE",              tagline: "Rubber-soft grip surfaces",               density: 0.90, pricePerKg: 180,
+    scores: { impact:2, stiffness:0, finish:2, heatResist:0, chemResist:1, uvResist:1, foodSafe:1, costEfficiency:2, flexibility:2, softTouch:3 } },
+  { id: "ASA",    label: "ASA",              tagline: "ABS but UV-stable — great outdoors",      density: 1.07, pricePerKg: 160,
+    scores: { impact:2, stiffness:2, finish:3, heatResist:1, chemResist:1, uvResist:3, foodSafe:0, costEfficiency:2, flexibility:0, softTouch:0 } },
+  { id: "POM",    label: "POM (Delrin)",     tagline: "Self-lubricating, precise — gears & clips", density: 1.41, pricePerKg: 250,
+    scores: { impact:2, stiffness:3, finish:3, heatResist:2, chemResist:2, uvResist:0, foodSafe:1, costEfficiency:1, flexibility:0, softTouch:0 } },
+  { id: "PMMA",   label: "PMMA (Acrylic)",   tagline: "Crystal clear — lenses, light pipes",     density: 1.19, pricePerKg: 220,
+    scores: { impact:1, stiffness:2, finish:3, heatResist:1, chemResist:1, uvResist:2, foodSafe:0, costEfficiency:2, flexibility:0, softTouch:0 } },
+  { id: "PA6GF",  label: "Nylon GF30",       tagline: "Glass-filled — maximum stiffness",        density: 1.36, pricePerKg: 300,
+    scores: { impact:2, stiffness:3, finish:1, heatResist:3, chemResist:2, uvResist:0, foodSafe:0, costEfficiency:1, flexibility:0, softTouch:0 } },
 ];
 
-function recommendMaterial(answers: Answers) {
-  return MATERIAL_RULES.find((r) => r.match(answers))!;
+const ALL_MATERIAL_IDS = MATERIALS.map(m => m.id);
+
+// ── New answers shape ─────────────────────────────────────────────────────────
+
+interface Answers {
+  partType: string;           // single select
+  environment: string[];      // multi-select
+  requirements: string[];     // multi-select
+}
+
+// ── Scoring-based recommendation ──────────────────────────────────────────────
+
+function recommendMaterial(answers: Answers): { id: string; label: string; reason: string } {
+  // Build weight vector from answers
+  const w = {
+    impact:       0,
+    stiffness:    0,
+    finish:       0,
+    heatResist:   0,
+    chemResist:   0,
+    uvResist:     0,
+    foodSafe:     0,
+    costEfficiency: 0,
+    flexibility:  0,
+    softTouch:    0,
+  };
+
+  // Part type weights
+  if (answers.partType === "structural")  { w.stiffness += 2; w.impact += 1; }
+  if (answers.partType === "enclosure")   { w.finish += 1; w.impact += 1; }
+  if (answers.partType === "flexible")    { w.flexibility += 3; }
+  if (answers.partType === "grip")        { w.softTouch += 3; w.flexibility += 1; }
+
+  // Environment weights
+  if (answers.environment.includes("outdoor"))  { w.uvResist += 2; w.heatResist += 1; }
+  if (answers.environment.includes("heat"))     { w.heatResist += 3; }
+  if (answers.environment.includes("chemical")) { w.chemResist += 3; }
+  if (answers.environment.includes("food"))     { w.foodSafe += 3; w.chemResist += 1; }
+
+  // Requirement weights
+  if (answers.requirements.includes("drops"))   { w.impact += 2; }
+  if (answers.requirements.includes("finish"))  { w.finish += 2; }
+  if (answers.requirements.includes("stiff"))   { w.stiffness += 2; }
+  if (answers.requirements.includes("cost"))    { w.costEfficiency += 3; }
+  if (answers.requirements.includes("light"))   { w.costEfficiency += 1; } // PP is lightest + cheap
+
+  // Score each material
+  const scored = MATERIALS.map(mat => {
+    let score = 0;
+    for (const key of Object.keys(w) as (keyof typeof w)[]) {
+      score += (mat.scores[key] ?? 0) * w[key];
+    }
+    return { mat, score };
+  }).sort((a, b) => b.score - a.score);
+
+  const winner = scored[0].mat;
+  const runnerUp = scored[1].mat;
+
+  // Build a plain-English reason from top contributing factors
+  const reasons: string[] = [];
+  if (answers.partType === "flexible")  reasons.push("it flexes and recovers without breaking");
+  if (answers.partType === "grip")      reasons.push("it gives a rubber-soft feel");
+  if (answers.partType === "structural") reasons.push("it handles load and wear");
+  if (answers.environment.includes("outdoor"))  reasons.push("it holds up to UV and weather");
+  if (answers.environment.includes("heat"))     reasons.push("it resists high temperatures");
+  if (answers.environment.includes("chemical")) reasons.push("it resists chemicals and moisture");
+  if (answers.environment.includes("food"))     reasons.push("it is food-safe");
+  if (answers.requirements.includes("drops"))   reasons.push("it absorbs impact well");
+  if (answers.requirements.includes("finish"))  reasons.push("it takes a great surface finish");
+  if (answers.requirements.includes("stiff"))   reasons.push("it stays rigid under load");
+  if (answers.requirements.includes("cost"))    reasons.push("it keeps material cost low");
+
+  const reasonStr = reasons.length > 0
+    ? `${winner.label} — ${winner.tagline}. Recommended because ${reasons.slice(0, 3).join(", ")}.`
+    : `${winner.label} — ${winner.tagline}. Best all-round match for your requirements.`;
+
+  return { id: winner.id, label: winner.label, reason: reasonStr };
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -118,7 +169,34 @@ function Option({ label, sub, selected, onClick }: {
 }
 
 const QTY_STEPS = [100, 250, 500, 1000, 2000, 5000, 10000, 25000, 50000];
-const ALL_MATERIALS = ["ABS", "PP", "Nylon", "PC", "HIPS", "TPU", "TPE"];
+
+// Multi-select option chip
+function Chip({ label, sub, selected, onClick }: {
+  label: string; sub?: string; selected: boolean; onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+        selected
+          ? "border-[#3b6bca] bg-[#eef2fc]"
+          : "border-[#e0deda] bg-[#f8f7f4] hover:border-[#3b6bca]/40"
+      }`}
+    >
+      <div className="flex items-start gap-2">
+        <div className={`mt-0.5 h-3.5 w-3.5 shrink-0 rounded border flex items-center justify-center transition-all ${
+          selected ? "border-[#3b6bca] bg-[#3b6bca]" : "border-[#c0bdb8] bg-white"
+        }`}>
+          {selected && <span className="text-white text-[8px] font-black leading-none">✓</span>}
+        </div>
+        <div>
+          <p className={`text-xs font-bold leading-tight ${selected ? "text-[#3b6bca]" : "text-[#1a1a1c]"}`}>{label}</p>
+          {sub && <p className="mt-0.5 text-[10px] text-[#9a9a9e] leading-snug">{sub}</p>}
+        </div>
+      </div>
+    </button>
+  );
+}
 
 // ── Main WizardPanel ──────────────────────────────────────────────────────────
 
@@ -128,6 +206,7 @@ interface WizardPanelProps {
   onMaterialChange: (m: string) => void;
   onQuantityChange: (q: number) => void;
   onRequestFaceSelection: () => void;
+  onOpenReport?: () => void;
   uploadedData: any;
   quantity: number;
   material: string;
@@ -142,6 +221,7 @@ const WizardPanel = ({
   onMaterialChange,
   onQuantityChange,
   onRequestFaceSelection,
+  onOpenReport,
   uploadedData,
   quantity,
   material,
@@ -152,7 +232,7 @@ const WizardPanel = ({
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [answers, setAnswers] = useState<Partial<Answers>>({});
+  const [answers, setAnswers] = useState<Partial<Answers>>({ environment: [], requirements: [] });
   const [recommendation, setRecommendation] = useState<{ id: string; label: string; reason: string } | null>(null);
   const [materialOverridden, setMaterialOverridden] = useState(false);
 
@@ -215,7 +295,21 @@ const WizardPanel = ({
     if (f) { setFile(f); uploadFile(f); }
   };
 
-  const allAnswered = !!(answers.partType && answers.flexible && answers.environment && answers.priority);
+  const allAnswered = !!(
+    answers.partType &&
+    (answers.environment?.length ?? 0) > 0 &&
+    (answers.requirements?.length ?? 0) > 0
+  );
+
+  // Multi-select toggle helpers
+  const toggleEnv = (val: string) => setAnswers(a => {
+    const cur = a.environment ?? [];
+    return { ...a, environment: cur.includes(val) ? cur.filter(v => v !== val) : [...cur, val] };
+  });
+  const toggleReq = (val: string) => setAnswers(a => {
+    const cur = a.requirements ?? [];
+    return { ...a, requirements: cur.includes(val) ? cur.filter(v => v !== val) : [...cur, val] };
+  });
 
   const handleProceedToPull = () => {
     if (!allAnswered) return;
@@ -229,7 +323,7 @@ const WizardPanel = ({
   const handleReset = () => {
     setStep(1);
     setFile(null);
-    setAnswers({});
+    setAnswers({ environment: [], requirements: [] });
     setRecommendation(null);
     setMaterialOverridden(false);
   };
@@ -312,72 +406,60 @@ const WizardPanel = ({
               </div>
             )}
 
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#9a9a9e]">Configure Part</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#9a9a9e]">Tell us about your part</p>
 
-            {/* Q1 */}
+            {/* Q1 — What is your part? (single select) */}
             <div className="space-y-1.5">
-              <p className="text-[10px] font-bold text-[#4a4a4e]">1. What type of part is this?</p>
-              <div className="grid grid-cols-2 gap-1.5">
+              <p className="text-[11px] font-bold text-[#1a1a1c]">What is your part?</p>
+              <p className="text-[10px] text-[#9a9a9e] -mt-1 mb-1.5">Pick the one that fits best</p>
+              <div className="space-y-1.5">
                 {[
-                  { val: "enclosure", label: "Enclosure", sub: "Housing / shell" },
-                  { val: "mechanical", label: "Mechanical", sub: "Gears / brackets" },
-                  { val: "consumer", label: "Consumer", sub: "Product / retail" },
-                  { val: "prototype", label: "Prototype", sub: "Low-volume test" },
+                  { val: "enclosure",  label: "Housing or enclosure",     sub: "A shell that holds electronics or other parts inside" },
+                  { val: "structural", label: "Structural or load-bearing", sub: "A bracket, frame, or part that takes force or weight" },
+                  { val: "flexible",   label: "Flexible or spring-like",   sub: "A clip, snap-fit, or hinge that bends and springs back" },
+                  { val: "grip",       label: "Grip or soft-touch surface", sub: "A handle, button, or surface that someone holds or presses" },
                 ].map(({ val, label, sub }) => (
                   <Option key={val} label={label} sub={sub}
                     selected={answers.partType === val}
-                    onClick={() => setAnswers((a) => ({ ...a, partType: val }))} />
+                    onClick={() => setAnswers(a => ({ ...a, partType: val }))} />
                 ))}
               </div>
             </div>
 
-            {/* Q2 */}
+            {/* Q2 — Where will it be used? (multi-select) */}
             <div className="space-y-1.5">
-              <p className="text-[10px] font-bold text-[#4a4a4e]">2. Does it need to flex or compress?</p>
+              <p className="text-[11px] font-bold text-[#1a1a1c]">Where will it be used?</p>
+              <p className="text-[10px] text-[#9a9a9e] -mt-1 mb-1.5">Select all that apply</p>
               <div className="space-y-1.5">
                 {[
-                  { val: "rigid", label: "No — must be rigid", sub: "Structural, dimensional accuracy" },
-                  { val: "flex-snap", label: "Yes — flex / snap fit", sub: "Springs back after deformation" },
-                  { val: "soft-touch", label: "Yes — soft touch / grip", sub: "Rubber feel, overmold" },
+                  { val: "indoor",   label: "Indoors at room temperature", sub: "Normal home or office environment" },
+                  { val: "outdoor",  label: "Outdoors or in direct sunlight", sub: "Exposed to UV rays, rain, or temperature swings" },
+                  { val: "heat",     label: "Near heat sources",           sub: "Engine bay, kitchen, or anywhere above 60°C" },
+                  { val: "chemical", label: "In contact with liquids or chemicals", sub: "Water, oils, cleaning sprays, fuels" },
+                  { val: "food",     label: "Food or skin contact",        sub: "Needs to be safe for direct human contact" },
                 ].map(({ val, label, sub }) => (
-                  <Option key={val} label={label} sub={sub}
-                    selected={answers.flexible === val}
-                    onClick={() => setAnswers((a) => ({ ...a, flexible: val }))} />
+                  <Chip key={val} label={label} sub={sub}
+                    selected={(answers.environment ?? []).includes(val)}
+                    onClick={() => toggleEnv(val)} />
                 ))}
               </div>
             </div>
 
-            {/* Q3 */}
+            {/* Q3 — What does it need? (multi-select) */}
             <div className="space-y-1.5">
-              <p className="text-[10px] font-bold text-[#4a4a4e]">3. Where will it be used?</p>
-              <div className="grid grid-cols-2 gap-1.5">
+              <p className="text-[11px] font-bold text-[#1a1a1c]">What does it need to do well?</p>
+              <p className="text-[10px] text-[#9a9a9e] -mt-1 mb-1.5">Select all that apply</p>
+              <div className="space-y-1.5">
                 {[
-                  { val: "indoor", label: "Indoors", sub: "Room temperature" },
-                  { val: "outdoor", label: "Outdoors", sub: "UV / weather" },
-                  { val: "high-heat", label: "High heat", sub: ">60°C" },
-                  { val: "chemical", label: "Chemical", sub: "Moisture / solvents" },
+                  { val: "drops",  label: "Survive drops and impacts",    sub: "It will be knocked, dropped, or hit in use" },
+                  { val: "finish", label: "Look good — smooth surface",   sub: "Visible part, needs a clean paintable finish" },
+                  { val: "stiff",  label: "Stay stiff under load",        sub: "Should not flex or deform when force is applied" },
+                  { val: "cost",   label: "Keep material cost low",       sub: "Cost per unit is a priority" },
+                  { val: "light",  label: "Be as light as possible",      sub: "Weight matters for the final product" },
                 ].map(({ val, label, sub }) => (
-                  <Option key={val} label={label} sub={sub}
-                    selected={answers.environment === val}
-                    onClick={() => setAnswers((a) => ({ ...a, environment: val }))} />
-                ))}
-              </div>
-            </div>
-
-            {/* Q4 */}
-            <div className="space-y-1.5">
-              <p className="text-[10px] font-bold text-[#4a4a4e]">4. What matters most?</p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {[
-                  { val: "cost", label: "Lowest cost" },
-                  { val: "impact", label: "Impact resist." },
-                  { val: "stiffness", label: "Stiffness" },
-                  { val: "finish", label: "Surface finish" },
-                  { val: "food-safe", label: "Food safe" },
-                ].map(({ val, label }) => (
-                  <Option key={val} label={label}
-                    selected={answers.priority === val}
-                    onClick={() => setAnswers((a) => ({ ...a, priority: val }))} />
+                  <Chip key={val} label={label} sub={sub}
+                    selected={(answers.requirements ?? []).includes(val)}
+                    onClick={() => toggleReq(val)} />
                 ))}
               </div>
             </div>
@@ -385,7 +467,7 @@ const WizardPanel = ({
             {/* Quantity */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-[10px] font-bold text-[#4a4a4e]">5. Production quantity</p>
+                <p className="text-[11px] font-bold text-[#1a1a1c]">Production quantity</p>
                 <span className="text-sm font-black tabular-nums text-[#1a1a1c]">{quantity.toLocaleString("en-IN")}</span>
               </div>
               <input
@@ -422,7 +504,7 @@ const WizardPanel = ({
                     onChange={(e) => { onMaterialChange(e.target.value); setMaterialOverridden(true); }}
                     className="w-full rounded-md border border-[#e0deda] bg-white px-2 py-1 text-xs font-semibold text-[#1a1a1c] focus:outline-none focus:border-[#3b6bca]"
                   >
-                    {ALL_MATERIALS.map((m) => <option key={m} value={m}>{m}</option>)}
+                    {MATERIALS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -460,20 +542,36 @@ const WizardPanel = ({
 
             {/* Confirmed */}
             {faceConfirmed && (
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 <div className="flex items-center gap-2 rounded-lg border border-[#c8ecd0] bg-[#f0faf4] px-3 py-2.5">
                   <span className="text-[#4caf72] text-base">✓</span>
                   <span className="text-[11px] font-bold text-[#4caf72]">Top / Bottom face confirmed</span>
                 </div>
 
-                {/* Draft angle tip — shown when undercuts present */}
+                {/* Draft angle tip */}
                 {analysisData?.has_undercuts && (
                   <div className="rounded-lg border border-[#c8ddf8] bg-[#eef2fc] px-3 py-2.5 space-y-1">
                     <p className="text-[9px] font-bold uppercase tracking-widest text-[#3b6bca]">💡 Design tip</p>
                     <p className="text-[11px] text-[#4a5a7a] leading-relaxed">
-                      Your part has near-vertical walls. Adding a <strong>1–2° draft angle</strong> to these walls will reduce undercut percentage, make ejection easier, and reduce cycle time.
+                      Your part has near-vertical walls. Adding a <strong>1–2° draft angle</strong> will reduce undercut percentage, make ejection easier, and reduce cycle time.
                     </p>
                   </div>
+                )}
+
+                {/* Read full report button */}
+                {onOpenReport && (
+                  <button
+                    onClick={onOpenReport}
+                    className="w-full rounded-lg border border-[#3b6bca] bg-white px-4 py-3 text-left transition-all hover:bg-[#eef2fc] group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[11px] font-bold text-[#3b6bca]">Read full cost report</p>
+                        <p className="text-[10px] text-[#9a9a9e] mt-0.5">Mold · per piece · material · all tiers</p>
+                      </div>
+                      <span className="text-[#3b6bca] text-base group-hover:translate-x-0.5 transition-transform">→</span>
+                    </div>
+                  </button>
                 )}
               </div>
             )}

@@ -1,5 +1,4 @@
 import CostInfoModal from "./CostInfoModal";
-import ReportModal from "./ReportModal";
 
 const MATERIALS: Record<string, { density: number; pricePerKg: number; label: string }> = {
   ABS:   { density: 1.05, pricePerKg: 120, label: "ABS" },
@@ -85,6 +84,7 @@ interface CostBarProps {
   undercutMessage?: string | null;
   onMaterialChange?: (m: string) => void;
   onQuantityChange?: (q: number) => void;
+  onOpenReport?: () => void;
 }
 
 const CostBar = ({
@@ -97,6 +97,7 @@ const CostBar = ({
   undercutMessage,
   onMaterialChange,
   onQuantityChange,
+  onOpenReport,
 }: CostBarProps) => {
   const hasData = !!volumeCubicMm && !!boundingBox;
 
@@ -188,15 +189,14 @@ const CostBar = ({
 
         {/* Buttons */}
         <div className="ml-auto flex items-center gap-2">
-          <ReportModal
-            volumeCubicMm={volumeCubicMm!}
-            boundingBox={boundingBox!}
-            material={material}
-            quantity={quantity}
-            hasUndercuts={hasUndercuts}
-            undercutSeverity={undercutSeverity}
-            undercutMessage={undercutMessage}
-          />
+          {onOpenReport && (
+            <button
+              onClick={onOpenReport}
+              className="rounded-lg border border-[#3b6bca] px-3 py-1.5 text-[10px] font-bold text-[#3b6bca] hover:bg-[#eef2fc] transition-colors"
+            >
+              Full report
+            </button>
+          )}
           <CostInfoModal />
         </div>
       </div>
