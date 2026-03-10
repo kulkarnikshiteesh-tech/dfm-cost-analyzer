@@ -29,8 +29,6 @@ const Index = () => {
     setFaceConfirmed(false);
   };
 
-  // Called every time user clicks "Analyse this face" — updates results live
-  // Do NOT update glbUrl here — CADViewer manages its own viewer URL internally
   const handleAnalysisResult = (result: any) => {
     setAnalysisData(result);
   };
