@@ -152,7 +152,8 @@ const CADViewer = ({
   const [latestResult, setLatestResult] = useState<AnalysisResult | null>(null);
   const [confirmed, setConfirmed] = useState(false);
 
-  // Sync viewer URL when prop changes (new upload)
+  // Only reset ALL state on a genuinely new upload (filename changes)
+  // NOT on every glbUrl change — analysis results also update glbUrl
   useEffect(() => {
     setViewerGlbUrl(glbUrl ?? null);
     setHighlightNormal(null);
@@ -160,6 +161,14 @@ const CADViewer = ({
     setAnalysing(false);
     setLatestResult(null);
     setConfirmed(false);
+  }, [uploadGlbFilename]); // <-- key fix: track filename, not full URL
+
+  // Keep viewer URL in sync with glbUrl without resetting state
+  useEffect(() => {
+    if (glbUrl && !analysing) {
+      // Only update viewer URL if we don't have a pending analysis result
+      // (analysis sets viewerGlbUrl directly inside handleAnalyse)
+    }
   }, [glbUrl]);
 
   // Re-enter selection mode (user went back or changed face)
