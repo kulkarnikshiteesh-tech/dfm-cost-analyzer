@@ -3,6 +3,7 @@ import WizardPanel from "@/components/WizardPanel";
 import DFMFeedback from "@/components/DFMFeedback";
 import CADViewer from "@/components/CADViewer";
 import CostBar from "@/components/CostBar";
+import ReportModal from "@/components/ReportModal";
 
 const Index = () => {
   const [glbUrl, setGlbUrl] = useState<string | null>(null);
@@ -13,6 +14,7 @@ const Index = () => {
   const [material, setMaterial] = useState("ABS");
   const [selectionMode, setSelectionMode] = useState(false);
   const [faceConfirmed, setFaceConfirmed] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   const handleUploadSuccess = (data: any) => {
     setGlbUrl(data.glb_url);
@@ -33,17 +35,17 @@ const Index = () => {
     setAnalysisData(result);
   };
 
-  // Called when user clicks "Accept" — locks in
   const handleFaceConfirmed = () => {
     setFaceConfirmed(true);
     setSelectionMode(false);
   };
 
-  // Called when user clicks "Try another face" — re-enables selection
   const handleTryAnother = () => {
     setFaceConfirmed(false);
     setSelectionMode(true);
   };
+
+  const canShowReport = !!(analysisData?.volume_cubic_mm && analysisData?.bounding_box_mm);
 
   return (
     <div
@@ -83,6 +85,7 @@ const Index = () => {
             onRequestFaceSelection={handleRequestFaceSelection}
             faceConfirmed={faceConfirmed}
             analysisData={analysisData}
+            onOpenReport={canShowReport ? () => setShowReport(true) : undefined}
           />
         </aside>
 
@@ -132,11 +135,26 @@ const Index = () => {
               undercutMessage={analysisData?.undercut_message ?? null}
               onMaterialChange={setMaterial}
               onQuantityChange={setQuantity}
+              onOpenReport={canShowReport ? () => setShowReport(true) : undefined}
             />
           </div>
 
         </main>
       </div>
+
+      {/* REPORT MODAL — rendered once, shared by both triggers */}
+      {showReport && canShowReport && (
+        <ReportModal
+          volumeCubicMm={analysisData.volume_cubic_mm}
+          boundingBox={analysisData.bounding_box_mm}
+          material={material}
+          quantity={quantity}
+          hasUndercuts={analysisData.has_undercuts}
+          undercutSeverity={analysisData.undercut_severity}
+          undercutMessage={analysisData.undercut_message}
+          onClose={() => setShowReport(false)}
+        />
+      )}
     </div>
   );
 };
