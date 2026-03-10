@@ -6,25 +6,84 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
 const BACKEND = "https://threed-backend-4v3g.onrender.com";
 
-// ── Rounded cube via superellipsoid mapping ───────────────────────────────────
-// Maps a sphere surface through superellipsoid — genuine box-with-rounded-edges
-// that catches directional light beautifully. power=5 = tight radius, power=3 = looser.
-function createRoundedCubeGeometry(segments = 64, power = 4.5): THREE.BufferGeometry {
-  const geo = new THREE.SphereGeometry(1.1, segments, segments);
-  const pos = geo.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
-    const p = 2 / power;
-    const sx = Math.sign(x) * Math.pow(Math.abs(x), p);
-    const sy = Math.sign(y) * Math.pow(Math.abs(y), p);
-    const sz = Math.sign(z) * Math.pow(Math.abs(z), p);
-    pos.setXYZ(i, sx, sy, sz);
+// ── Rounded box geometry with small fillet ────────────────────────────────────
+// Builds a box where each edge/corner is bevelled by `radius`.
+// Uses the "inflate a box" technique — place a sphere at each of the 8 corners,
+// cylinders along the 12 edges, and flat quads on the 6 faces, all at radius offset.
+function createRoundedBoxGeo(size = 1.8, radius = 0.1, segments = 8): THREE.BufferGeometry {
+  const r = radius;
+  const s = size / 2 - r;
+  const geo = new THREE.BufferGeometry();
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const indices: number[] = [];
+
+  function addVertex(x: number, y: number, z: number, nx: number, ny: number, nz: number) {
+    positions.push(x, y, z);
+    normals.push(nx, ny, nz);
+    return positions.length / 3 - 1;
   }
-  geo.computeVertexNormals();
+
+  // For each of the 8 corners — quarter-sphere patch
+  const corners = [
+    [ 1,  1,  1], [ 1,  1, -1], [ 1, -1,  1], [ 1, -1, -1],
+    [-1,  1,  1], [-1,  1, -1], [-1, -1,  1], [-1, -1, -1],
+  ];
+
+  for (const [cx, cy, cz] of corners) {
+    for (let i = 0; i <= segments; i++) {
+      const phi = (Math.PI / 2) * (i / segments);
+      for (let j = 0; j <= segments; j++) {
+        const theta = (Math.PI / 2) * (j / segments);
+        const nx = cx * Math.cos(phi) * Math.cos(theta);
+        const ny = cy * Math.sin(phi);
+        const nz = cz * Math.cos(phi) * Math.sin(theta);
+        addVertex(cx * s + nx * r, cy * s + ny * r, cz * s + nz * r, nx, ny, nz);
+      }
+    }
+    const base = positions.length / 3 - (segments + 1) * (segments + 1);
+    for (let i = 0; i < segments; i++) {
+      for (let j = 0; j < segments; j++) {
+        const a = base + i * (segments + 1) + j;
+        const b = a + 1;
+        const c = a + (segments + 1);
+        const d = c + 1;
+        indices.push(a, b, d, a, d, c);
+      }
+    }
+  }
+
+  // 6 flat face quads (just large enough to fill between the corner patches)
+  const faceVerts: [number,number,number,number,number,number][] = [
+    // x+
+    [ s+r,  s, -s,  1, 0, 0], [ s+r, -s, -s,  1, 0, 0], [ s+r,  s,  s,  1, 0, 0], [ s+r, -s,  s,  1, 0, 0],
+    // x-
+    [-s-r,  s,  s, -1, 0, 0], [-s-r, -s,  s, -1, 0, 0], [-s-r,  s, -s, -1, 0, 0], [-s-r, -s, -s, -1, 0, 0],
+    // y+
+    [ s,  s+r,  s,  0, 1, 0], [-s,  s+r,  s,  0, 1, 0], [ s,  s+r, -s,  0, 1, 0], [-s,  s+r, -s,  0, 1, 0],
+    // y-
+    [ s, -s-r, -s,  0,-1, 0], [-s, -s-r, -s,  0,-1, 0], [ s, -s-r,  s,  0,-1, 0], [-s, -s-r,  s,  0,-1, 0],
+    // z+
+    [-s,  s,  s+r,  0, 0, 1], [-s, -s,  s+r,  0, 0, 1], [ s,  s,  s+r,  0, 0, 1], [ s, -s,  s+r,  0, 0, 1],
+    // z-
+    [ s,  s, -s-r,  0, 0,-1], [ s, -s, -s-r,  0, 0,-1], [-s,  s, -s-r,  0, 0,-1], [-s, -s, -s-r,  0, 0,-1],
+  ];
+  for (let f = 0; f < 6; f++) {
+    const b = positions.length / 3;
+    for (let v = 0; v < 4; v++) {
+      const [x,y,z,nx,ny,nz] = faceVerts[f*4+v];
+      addVertex(x, y, z, nx, ny, nz);
+    }
+    indices.push(b, b+1, b+3, b, b+3, b+2);
+  }
+
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute("normal",   new THREE.Float32BufferAttribute(normals, 3));
+  geo.setIndex(indices);
   return geo;
 }
 
-// ── Paint entire model a solid colour ────────────────────────────────────────
+
 function paintScene(model: THREE.Object3D, r: number, g: number, b: number) {
   model.traverse((child: any) => {
     if (!child.isMesh || !child.geometry) return;
@@ -178,17 +237,11 @@ const CADViewer = ({
     rim.position.set(1, -5, -7);
     scene.add(rim);
 
-    // Premium spinning placeholder — superellipsoid rounded cube
-    const spinGeo = createRoundedCubeGeometry(64, 4.5);
-    const spinMat = new THREE.MeshPhysicalMaterial({
-      color: 0x3b6bca,
-      metalness: 0.55,
-      roughness: 0.12,
-      reflectivity: 0.9,
-      clearcoat: 0.4,
-      clearcoatRoughness: 0.1,
-    });
-    const spin = new THREE.Mesh(spinGeo, spinMat);
+    // Spinning cube — sharp edges with small fillet
+    const spin = new THREE.Mesh(
+      createRoundedBoxGeo(1.8, 0.1, 6),
+      new THREE.MeshStandardMaterial({ color: 0x3b6bca, metalness: 0.2, roughness: 0.3 })
+    );
     scene.add(spin);
     spinRef.current = spin;
 
