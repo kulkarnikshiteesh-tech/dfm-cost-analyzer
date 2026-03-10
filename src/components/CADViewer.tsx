@@ -3,84 +3,55 @@ import { OrbitControls, Environment, RoundedBox } from "@react-three/drei";
 import { useRef, Suspense, useEffect, useState, useCallback } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtils";
 
 const BACKEND = "https://threed-backend-4v3g.onrender.com";
 
-// ── Rounded box geometry with small fillet ────────────────────────────────────
-// Builds a box where each edge/corner is bevelled by `radius`.
-// Uses the "inflate a box" technique — place a sphere at each of the 8 corners,
-// cylinders along the 12 edges, and flat quads on the 6 faces, all at radius offset.
-function createRoundedBoxGeo(size = 1.8, radius = 0.1, segments = 8): THREE.BufferGeometry {
+// ── Rounded box — merge box + 12 edge cylinders + 8 corner spheres ────────────
+// This is the most reliable approach — no custom index stitching needed.
+function createRoundedBoxGeo(size = 1.8, radius = 0.09): THREE.BufferGeometry {
+  const s = size / 2;
   const r = radius;
-  const s = size / 2 - r;
-  const geo = new THREE.BufferGeometry();
-  const positions: number[] = [];
-  const normals: number[] = [];
-  const indices: number[] = [];
+  const segs = 8;
+  const geos: THREE.BufferGeometry[] = [];
 
-  function addVertex(x: number, y: number, z: number, nx: number, ny: number, nz: number) {
-    positions.push(x, y, z);
-    normals.push(nx, ny, nz);
-    return positions.length / 3 - 1;
-  }
+  // Core box (slightly inset)
+  geos.push(new THREE.BoxGeometry(size - r*2, size - r*2, size - r*2));
 
-  // For each of the 8 corners — quarter-sphere patch
-  const corners = [
-    [ 1,  1,  1], [ 1,  1, -1], [ 1, -1,  1], [ 1, -1, -1],
-    [-1,  1,  1], [-1,  1, -1], [-1, -1,  1], [-1, -1, -1],
+  // 6 face slabs — fill the gap between core and edge cylinders
+  geos.push(new THREE.BoxGeometry(size,       size-r*2, size-r*2));
+  geos.push(new THREE.BoxGeometry(size-r*2,   size,     size-r*2));
+  geos.push(new THREE.BoxGeometry(size-r*2,   size-r*2, size    ));
+
+  // 12 edge cylinders
+  const edgeDirs: [number,number,number,number,number,number][] = [
+    // along X
+    [0,  s-r,  s-r, 0, 0, 0], [0,  s-r, -(s-r), 0, 0, 0],
+    [0, -(s-r), s-r, 0, 0, 0], [0, -(s-r), -(s-r), 0, 0, 0],
+    // along Y
+    [ s-r, 0,  s-r, Math.PI/2, 0, 0], [ s-r, 0, -(s-r), Math.PI/2, 0, 0],
+    [-(s-r), 0,  s-r, Math.PI/2, 0, 0], [-(s-r), 0, -(s-r), Math.PI/2, 0, 0],
+    // along Z
+    [ s-r,  s-r, 0, 0, Math.PI/2, 0], [ s-r, -(s-r), 0, 0, Math.PI/2, 0],
+    [-(s-r),  s-r, 0, 0, Math.PI/2, 0], [-(s-r), -(s-r), 0, 0, Math.PI/2, 0],
   ];
-
-  for (const [cx, cy, cz] of corners) {
-    for (let i = 0; i <= segments; i++) {
-      const phi = (Math.PI / 2) * (i / segments);
-      for (let j = 0; j <= segments; j++) {
-        const theta = (Math.PI / 2) * (j / segments);
-        const nx = cx * Math.cos(phi) * Math.cos(theta);
-        const ny = cy * Math.sin(phi);
-        const nz = cz * Math.cos(phi) * Math.sin(theta);
-        addVertex(cx * s + nx * r, cy * s + ny * r, cz * s + nz * r, nx, ny, nz);
-      }
-    }
-    const base = positions.length / 3 - (segments + 1) * (segments + 1);
-    for (let i = 0; i < segments; i++) {
-      for (let j = 0; j < segments; j++) {
-        const a = base + i * (segments + 1) + j;
-        const b = a + 1;
-        const c = a + (segments + 1);
-        const d = c + 1;
-        indices.push(a, b, d, a, d, c);
-      }
-    }
+  for (const [tx, ty, tz, rx, ry, rz] of edgeDirs) {
+    const cyl = new THREE.CylinderGeometry(r, r, size - r*2, segs);
+    cyl.rotateX(rx); cyl.rotateY(ry); cyl.rotateZ(rz);
+    cyl.translate(tx, ty, tz);
+    geos.push(cyl);
   }
 
-  // 6 flat face quads (just large enough to fill between the corner patches)
-  const faceVerts: [number,number,number,number,number,number][] = [
-    // x+
-    [ s+r,  s, -s,  1, 0, 0], [ s+r, -s, -s,  1, 0, 0], [ s+r,  s,  s,  1, 0, 0], [ s+r, -s,  s,  1, 0, 0],
-    // x-
-    [-s-r,  s,  s, -1, 0, 0], [-s-r, -s,  s, -1, 0, 0], [-s-r,  s, -s, -1, 0, 0], [-s-r, -s, -s, -1, 0, 0],
-    // y+
-    [ s,  s+r,  s,  0, 1, 0], [-s,  s+r,  s,  0, 1, 0], [ s,  s+r, -s,  0, 1, 0], [-s,  s+r, -s,  0, 1, 0],
-    // y-
-    [ s, -s-r, -s,  0,-1, 0], [-s, -s-r, -s,  0,-1, 0], [ s, -s-r,  s,  0,-1, 0], [-s, -s-r,  s,  0,-1, 0],
-    // z+
-    [-s,  s,  s+r,  0, 0, 1], [-s, -s,  s+r,  0, 0, 1], [ s,  s,  s+r,  0, 0, 1], [ s, -s,  s+r,  0, 0, 1],
-    // z-
-    [ s,  s, -s-r,  0, 0,-1], [ s, -s, -s-r,  0, 0,-1], [-s,  s, -s-r,  0, 0,-1], [-s, -s, -s-r,  0, 0,-1],
-  ];
-  for (let f = 0; f < 6; f++) {
-    const b = positions.length / 3;
-    for (let v = 0; v < 4; v++) {
-      const [x,y,z,nx,ny,nz] = faceVerts[f*4+v];
-      addVertex(x, y, z, nx, ny, nz);
-    }
-    indices.push(b, b+1, b+3, b, b+3, b+2);
+  // 8 corner spheres
+  for (const sx2 of [-1, 1]) for (const sy2 of [-1, 1]) for (const sz2 of [-1, 1]) {
+    const sph = new THREE.SphereGeometry(r, segs, segs);
+    sph.translate(sx2*(s-r), sy2*(s-r), sz2*(s-r));
+    geos.push(sph);
   }
 
-  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geo.setAttribute("normal",   new THREE.Float32BufferAttribute(normals, 3));
-  geo.setIndex(indices);
-  return geo;
+  const merged = BufferGeometryUtils.mergeGeometries(geos);
+  geos.forEach(g => g.dispose());
+  return merged;
 }
 
 
@@ -221,19 +192,15 @@ const CADViewer = ({
     cameraRef.current = camera;
 
     // Studio lighting — CAD render quality
-    scene.add(new THREE.AmbientLight(0xffffff, 0.3));
-    // Hemisphere light — warm ground, cool sky — gives natural bounce
-    scene.add(new THREE.HemisphereLight(0xddeeff, 0xfff4e0, 0.5));
-    // Key light — main illumination from upper left
-    const key = new THREE.DirectionalLight(0xffffff, 1.4);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    scene.add(new THREE.HemisphereLight(0xddeeff, 0xfff4e0, 0.4));
+    const key = new THREE.DirectionalLight(0xffffff, 0.8);
     key.position.set(5, 9, 6);
     scene.add(key);
-    // Fill light — soft blue from opposite side
-    const fill = new THREE.DirectionalLight(0xc8d8f8, 0.45);
+    const fill = new THREE.DirectionalLight(0xc8d8f8, 0.3);
     fill.position.set(-7, 2, -3);
     scene.add(fill);
-    // Rim light — subtle back-light to separate from background
-    const rim = new THREE.DirectionalLight(0xffffff, 0.25);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.15);
     rim.position.set(1, -5, -7);
     scene.add(rim);
 
