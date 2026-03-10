@@ -1,7 +1,6 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Environment, RoundedBox, useGLTF } from "@react-three/drei";
-import { useRef, Suspense, useEffect, useState, useCallback } from "react";
-import * as THREE from "three";
+import { useRef, Suspense, useEffect, useState, useCallback } from "react";import * as THREE from "three";
 
 const BACKEND = "https://threed-backend-4v3g.onrender.com";
 
@@ -152,24 +151,20 @@ const CADViewer = ({
   const [latestResult, setLatestResult] = useState<AnalysisResult | null>(null);
   const [confirmed, setConfirmed] = useState(false);
 
+  // Keep a stable ref to the original upload GLB URL
+  // so we can restore it when user clicks "Try another face"
+  const originalGlbUrl = useRef<string | null>(null);
+
   // Only reset ALL state on a genuinely new upload (filename changes)
-  // NOT on every glbUrl change — analysis results also update glbUrl
   useEffect(() => {
+    originalGlbUrl.current = glbUrl ?? null;
     setViewerGlbUrl(glbUrl ?? null);
     setHighlightNormal(null);
     setPendingNormal(null);
     setAnalysing(false);
     setLatestResult(null);
     setConfirmed(false);
-  }, [uploadGlbFilename]); // <-- key fix: track filename, not full URL
-
-  // Keep viewer URL in sync with glbUrl without resetting state
-  useEffect(() => {
-    if (glbUrl && !analysing) {
-      // Only update viewer URL if we don't have a pending analysis result
-      // (analysis sets viewerGlbUrl directly inside handleAnalyse)
-    }
-  }, [glbUrl]);
+  }, [uploadGlbFilename]);
 
   // Re-enter selection mode (user went back or changed face)
   useEffect(() => {
@@ -221,13 +216,14 @@ const CADViewer = ({
   };
 
   const handleTryAnother = () => {
-    // Go back to original upload GLB so user sees clean model
-    setViewerGlbUrl(glbUrl ?? null);
+    // Restore original clean upload GLB from ref, bust cache so Three.js reloads it
+    const base = originalGlbUrl.current?.split("?")[0] ?? null;
+    setViewerGlbUrl(base ? `${base}?t=${Date.now()}` : null);
     setHighlightNormal(null);
     setPendingNormal(null);
     setLatestResult(null);
     setConfirmed(false);
-    onTryAnother?.(); // tell Index to re-enable selectionMode
+    onTryAnother?.();
   };
 
   const handleConfirm = () => {
