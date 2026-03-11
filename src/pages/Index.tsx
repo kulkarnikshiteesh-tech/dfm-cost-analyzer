@@ -72,7 +72,7 @@ const Index = () => {
       {/* BODY */}
       <div className="flex min-h-0 flex-1">
 
-        {/* LEFT PANEL */}
+        {/* LEFT PANEL — wizard + DFM feedback */}
         <aside className="flex w-[280px] shrink-0 flex-col border-r border-[#e0deda] bg-white overflow-hidden">
           <WizardPanel
             onUploadSuccess={handleUploadSuccess}
@@ -85,32 +85,10 @@ const Index = () => {
             onRequestFaceSelection={handleRequestFaceSelection}
             faceConfirmed={faceConfirmed}
             analysisData={analysisData}
-            onOpenReport={canShowReport ? () => setShowReport(true) : undefined}
           />
-        </aside>
-
-        {/* CENTER */}
-        <main className="flex min-w-0 flex-1 flex-col">
-
-          {/* 3D VIEWER */}
-          <div className="min-h-0 flex-1">
-            <CADViewer
-              glbUrl={glbUrl}
-              uploadGlbFilename={uploadGlbFilename}
-              selectionMode={selectionMode}
-              onAnalysisResult={handleAnalysisResult}
-              onFaceConfirmed={handleFaceConfirmed}
-              onTryAnother={handleTryAnother}
-              analysisComplete={faceConfirmed}
-            />
-          </div>
-
-          {/* DFM FEEDBACK — only after analysis */}
+          {/* DFM Feedback sits below wizard in left panel */}
           {analysisData && (
-            <div
-              className="shrink-0 border-t border-[#e0deda] bg-white px-4 py-3 max-h-[160px] overflow-y-auto"
-              style={{ scrollbarWidth: "none" }}
-            >
+            <div className="shrink-0 border-t border-[#e0deda] overflow-y-auto" style={{ scrollbarWidth: "none" }}>
               <DFMFeedback
                 volumeCubicMm={analysisData.volume_cubic_mm}
                 boundingBox={analysisData.bounding_box_mm ?? null}
@@ -122,24 +100,37 @@ const Index = () => {
               />
             </div>
           )}
+        </aside>
 
-          {/* COST BAR */}
-          <div className="shrink-0 border-t border-[#e0deda] bg-white">
-            <CostBar
-              volumeCubicMm={analysisData?.volume_cubic_mm}
-              boundingBox={analysisData?.bounding_box_mm ?? null}
-              material={material}
-              quantity={quantity}
-              hasUndercuts={analysisData?.has_undercuts ?? null}
-              undercutSeverity={analysisData?.undercut_severity ?? null}
-              undercutMessage={analysisData?.undercut_message ?? null}
-              onMaterialChange={setMaterial}
-              onQuantityChange={setQuantity}
-              onOpenReport={canShowReport ? () => setShowReport(true) : undefined}
-            />
-          </div>
-
+        {/* CENTER — 3D viewer, full height, never shrinks */}
+        <main className="flex min-w-0 flex-1">
+          <CADViewer
+            glbUrl={glbUrl}
+            uploadGlbFilename={uploadGlbFilename}
+            selectionMode={selectionMode}
+            onAnalysisResult={handleAnalysisResult}
+            onFaceConfirmed={handleFaceConfirmed}
+            onTryAnother={handleTryAnother}
+            analysisComplete={faceConfirmed}
+          />
         </main>
+
+        {/* RIGHT PANEL — costing */}
+        <aside className="flex w-[280px] shrink-0 flex-col border-l border-[#e0deda] bg-white overflow-hidden">
+          <CostBar
+            volumeCubicMm={analysisData?.volume_cubic_mm}
+            boundingBox={analysisData?.bounding_box_mm ?? null}
+            material={material}
+            quantity={quantity}
+            hasUndercuts={analysisData?.has_undercuts ?? null}
+            undercutSeverity={analysisData?.undercut_severity ?? null}
+            undercutMessage={analysisData?.undercut_message ?? null}
+            onMaterialChange={setMaterial}
+            onQuantityChange={setQuantity}
+            onOpenReport={canShowReport ? () => setShowReport(true) : undefined}
+          />
+        </aside>
+
       </div>
 
       {/* REPORT MODAL — rendered once, shared by both triggers */}
