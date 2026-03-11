@@ -515,26 +515,6 @@ const WizardPanel = ({
                 <p className="text-[11px] text-[#6a6a6e] leading-relaxed">
                   Click any face on your model in the 3D viewer. Try different faces — the one with the <strong>lowest undercut %</strong> is your best mould direction.
                 </p>
-                <p className="text-[10px] text-[#9a9a9e]">Cost bar updates live with each face you analyse.</p>
-              </div>
-            )}
-
-            {/* Live result while exploring — before confirmed */}
-            {!faceConfirmed && analysisData && (
-              <div className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-3 py-2.5 space-y-1">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Latest result</p>
-                <p className={`text-xs font-bold ${
-                  analysisData.has_undercuts
-                    ? analysisData.undercut_severity === "high" ? "text-[#dc2626]" : "text-[#c08010]"
-                    : "text-[#16a34a]"
-                }`}>
-                  {analysisData.has_undercuts
-                    ? analysisData.undercut_severity === "high" ? "⚠ High undercut risk" : "⚠ Moderate undercut risk"
-                    : "✓ No undercut risk"
-                  }
-                </p>
-                <p className="text-[10px] text-[#9a9a9e]">{analysisData.undercut_message}</p>
-                <p className="text-[10px] text-[#b0ada8] italic">Try another face to compare</p>
               </div>
             )}
 

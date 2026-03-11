@@ -1,10 +1,8 @@
-import { AlertTriangle, CheckCircle2, Info, Ruler, Package, Wrench, Zap } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, Ruler } from "lucide-react";
 
 interface DFMFeedbackProps {
   volumeCubicMm?: number | null;
   boundingBox?: { x: number; y: number; z: number } | null;
-  material?: string;
-  quantity?: number;
   hasUndercuts?: boolean | null;
   undercutSeverity?: string | null;
   undercutMessage?: string | null;
@@ -41,25 +39,6 @@ function getDFMIssues(vol: number, bb: { x: number; y: number; z: number }) {
   return issues;
 }
 
-function getMoldRec(qty: number) {
-  if (qty <= 500) return `Aluminium soft mold — suitable for <500 shots`;
-  if (qty <= 5000) return `Mild steel semi-soft mold — up to 5,000 shots`;
-  return `H13 hard steel mold — high volume production`;
-}
-
-function getMachineSpec(vol: number, bb: { x: number; y: number; z: number }) {
-  const { x, y } = bb;
-  const projected = x > 0 && y > 0 ? (x * y) / 100 : Math.pow(vol, 2 / 3) / 10;
-  let tonnage = Math.max(50, Math.ceil((projected * 0.5) / 10) * 10);
-  if (tonnage > 500) tonnage = 500;
-  const volCm3 = vol / 1000;
-  return {
-    tonnage,
-    shotSize: `${(volCm3 * 1.15).toFixed(1)} cm³`,
-    screwDia: tonnage <= 150 ? "30–45mm" : "50–70mm",
-  };
-}
-
 const borderBySeverity: Record<string, string> = {
   high: "border-l-[#e05050]",
   moderate: "border-l-[#e0a020]",
@@ -82,20 +61,16 @@ const icons = {
 const DFMFeedback = ({
   volumeCubicMm,
   boundingBox,
-  quantity = 1000,
   hasUndercuts,
   undercutSeverity,
   undercutMessage,
 }: DFMFeedbackProps) => {
   const hasData = !!volumeCubicMm;
   const safeBB = boundingBox || { x: 0, y: 0, z: 0 };
-
   const issues = hasData ? getDFMIssues(volumeCubicMm!, safeBB) : [];
-  const moldRec = hasData ? getMoldRec(quantity) : null;
-  const machine = hasData ? getMachineSpec(volumeCubicMm!, safeBB) : null;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 px-4 py-3">
       <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9a9a9e]">
         DFM Analysis
       </h3>
@@ -156,35 +131,6 @@ const DFMFeedback = ({
               );
             })}
           </ul>
-
-          {/* Mold recommendation */}
-          {moldRec && (
-            <div className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-3 py-2.5">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e] mb-1.5">Recommended Mold</p>
-              <div className="flex items-start gap-2">
-                <Package className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#3b6bca]" />
-                <span className="text-[11px] text-[#6a6a6e]">{moldRec}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Machine spec */}
-          {machine && (
-            <div className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-3 py-2.5">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e] mb-1.5">Machine Spec</p>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5">
-                  <Zap className="h-3.5 w-3.5 text-[#e0a020]" />
-                  <span className="text-xs font-bold font-mono text-[#1a1a1c]">{machine.tonnage}T</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Wrench className="h-3 w-3 text-[#9a9a9e]" />
-                  <span className="text-[11px] font-mono text-[#6a6a6e]">{machine.shotSize}</span>
-                </div>
-                <span className="text-[11px] font-mono text-[#b0ada8]">{machine.screwDia}</span>
-              </div>
-            </div>
-          )}
 
         </div>
       )}

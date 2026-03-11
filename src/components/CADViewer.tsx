@@ -96,6 +96,8 @@ interface CADViewerProps {
   onAnalysisResult?:   (result: AnalysisResult) => void;
   onFaceConfirmed?:    () => void;
   onTryAnother?:       () => void;
+  onStartOver?:        () => void;
+  analysisComplete?:   boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -106,6 +108,7 @@ const CADViewer = ({
   onAnalysisResult,
   onFaceConfirmed,
   onTryAnother,
+  onStartOver,
 }: CADViewerProps) => {
   const mountRef        = useRef<HTMLDivElement>(null);
   const rendererRef     = useRef<THREE.WebGLRenderer | null>(null);
@@ -204,16 +207,14 @@ const CADViewer = ({
   }, []);
 
   // ── Imperative GLB loader — no useGLTF cache ─────────────────────────────
-  const loadGlb = useCallback((url: string, preserveColors = false) => {
+  const loadGlb = useCallback((url: string) => {
     const scene = threeSceneRef.current!;
 
-    // Remove previous model
     if (modelRef.current) {
       scene.remove(modelRef.current);
       modelRef.current = null;
     }
 
-    // Hide spinner
     if (spinRef.current) {
       spinActiveRef.current = false;
       spinRef.current.visible = false;
@@ -223,7 +224,6 @@ const CADViewer = ({
     loader.load(url, (gltf) => {
       const model = gltf.scene;
 
-      // Scale + centre
       const box    = new THREE.Box3().setFromObject(model);
       const size   = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
@@ -232,12 +232,9 @@ const CADViewer = ({
       const center = box.getCenter(new THREE.Vector3());
       model.position.sub(center.multiplyScalar(scale));
 
-      // Only reset to blue on fresh upload — preserve backend colours on analysis GLB
-      if (!preserveColors) {
-        paintScene(model, 0.23, 0.42, 0.79);
-      }
+      // Always paint solid lighter blue — backend GLB has no color info
+      paintScene(model, 0.36, 0.56, 0.9);
 
-      // CAD-render quality shader — MeshPhysicalMaterial with clearcoat
       model.traverse((child: any) => {
         if (!child.isMesh) return;
         const oldMat = child.material;
@@ -319,8 +316,8 @@ const CADViewer = ({
         const data: AnalysisResult = await res.json();
         if (data.glb_url?.startsWith("/static/")) data.glb_url = BACKEND + data.glb_url;
 
-        // Load coloured analysis GLB — preserve backend undercut colours
-        loadGlb(`${data.glb_url}?t=${Date.now()}`, true);
+        // Load coloured analysis GLB
+        loadGlb(`${data.glb_url}?t=${Date.now()}`);
         setLatestResult(data);
         onAnalysisResult?.(data);
       }
@@ -469,6 +466,22 @@ const CADViewer = ({
               change
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Start Over — bottom left, shown whenever a model is loaded */}
+      {hasModel && onStartOver && (
+        <div data-overlay className="absolute bottom-5 left-5 z-10">
+          <button
+            onClick={onStartOver}
+            className="flex items-center gap-2 rounded-lg border border-[#e0deda] bg-white/90 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[#9a9a9e] hover:bg-white hover:text-[#dc2626] hover:border-[#dc2626]/40 transition-all shadow-sm backdrop-blur-sm"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="shrink-0">
+              <path d="M5 1.5A3.5 3.5 0 1 0 8.5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              <path d="M8.5 2V5H5.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Start over
+          </button>
         </div>
       )}
     </div>
