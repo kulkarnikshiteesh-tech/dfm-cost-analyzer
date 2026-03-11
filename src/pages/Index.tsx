@@ -45,6 +45,16 @@ const Index = () => {
     setSelectionMode(true);
   };
 
+  const handleStartOver = () => {
+    setGlbUrl(null);
+    setUploadGlbFilename(null);
+    setUploadData(null);
+    setAnalysisData(null);
+    setFaceConfirmed(false);
+    setSelectionMode(false);
+    setShowReport(false);
+  };
+
   const canShowReport = !!(analysisData?.volume_cubic_mm && analysisData?.bounding_box_mm);
 
   return (
@@ -95,8 +105,6 @@ const Index = () => {
                 hasUndercuts={analysisData.has_undercuts}
                 undercutSeverity={analysisData.undercut_severity}
                 undercutMessage={analysisData.undercut_message}
-                material={material}
-                quantity={quantity}
               />
             </div>
           )}
@@ -111,6 +119,7 @@ const Index = () => {
             onAnalysisResult={handleAnalysisResult}
             onFaceConfirmed={handleFaceConfirmed}
             onTryAnother={handleTryAnother}
+            onStartOver={handleStartOver}
             analysisComplete={faceConfirmed}
           />
         </main>
