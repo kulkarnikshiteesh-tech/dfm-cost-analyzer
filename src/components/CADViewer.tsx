@@ -204,7 +204,7 @@ const CADViewer = ({
   }, []);
 
   // ── Imperative GLB loader — no useGLTF cache ─────────────────────────────
-  const loadGlb = useCallback((url: string, onLoaded?: (model: THREE.Object3D) => void) => {
+  const loadGlb = useCallback((url: string, preserveColors = false) => {
     const scene = threeSceneRef.current!;
 
     // Remove previous model
@@ -232,8 +232,10 @@ const CADViewer = ({
       const center = box.getCenter(new THREE.Vector3());
       model.position.sub(center.multiplyScalar(scale));
 
-      // Always reset to solid blue first (overrides any baked orange from backend)
-      paintScene(model, 0.23, 0.42, 0.79);
+      // Only reset to blue on fresh upload — preserve backend colours on analysis GLB
+      if (!preserveColors) {
+        paintScene(model, 0.23, 0.42, 0.79);
+      }
 
       // CAD-render quality shader — MeshPhysicalMaterial with clearcoat
       model.traverse((child: any) => {
@@ -254,8 +256,6 @@ const CADViewer = ({
       scene.add(model);
       modelRef.current = model;
       setHasModel(true);
-
-      onLoaded?.(model);
     }, undefined, (err) => {
       console.error("GLB load error:", err);
     });
@@ -319,8 +319,8 @@ const CADViewer = ({
         const data: AnalysisResult = await res.json();
         if (data.glb_url?.startsWith("/static/")) data.glb_url = BACKEND + data.glb_url;
 
-        // Load coloured analysis GLB — paintScene resets to blue, then backend colours show
-        loadGlb(`${data.glb_url}?t=${Date.now()}`);
+        // Load coloured analysis GLB — preserve backend undercut colours
+        loadGlb(`${data.glb_url}?t=${Date.now()}`, true);
         setLatestResult(data);
         onAnalysisResult?.(data);
       }

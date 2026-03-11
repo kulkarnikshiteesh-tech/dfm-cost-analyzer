@@ -94,7 +94,6 @@ const CostBar = ({
   quantity = 1000,
   hasUndercuts,
   undercutSeverity,
-  undercutMessage,
   onMaterialChange,
   onQuantityChange,
   onOpenReport,
@@ -119,91 +118,87 @@ const CostBar = ({
 
   if (!hasData) {
     return (
-      <div className="flex items-center justify-center px-6 py-4">
-        <p className="text-[11px] uppercase tracking-widest text-[#b0ada8]">
-          Upload a model to see cost estimates
-        </p>
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center">
+        <div className="rounded-xl border border-[#e0deda] bg-[#f8f7f4] px-5 py-6 space-y-2">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#b0ada8]">Costing</p>
+          <p className="text-[11px] text-[#9a9a9e] leading-relaxed">
+            Upload a model and confirm a top / bottom face to see cost estimates
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="px-6 py-3 space-y-2">
+    <div className="flex flex-col h-full overflow-y-auto px-4 py-4 space-y-4" style={{ scrollbarWidth: "none" }}>
 
-      {/* Cost figures + material selector */}
-      <div className="flex items-center gap-5">
-
-        {/* Mold cost */}
-        <div className="min-w-[150px]">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Mold Cost</p>
-          <p className="text-xl font-black tabular-nums text-[#1a1a1c]">
-            ₹{mold!.total.toLocaleString("en-IN")}
-          </p>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <p className="text-[9px] text-[#b0ada8]">{mold!.label}</p>
-            {mold!.surcharge > 0 && (
-              <span className="text-[9px] font-bold text-[#c08010]" title={`+${Math.round(mold!.surchargeRate * 100)}% undercut surcharge (approx.) — side-action sliders required. Actual surcharge varies.`}>
-                ⚠ +{Math.round(mold!.surchargeRate * 100)}% undercut
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="h-10 w-px bg-[#e0deda]" />
-
-        {/* Per piece */}
-        <div className="min-w-[110px]">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Per Piece</p>
-          <p className="text-xl font-black tabular-nums text-[#1a1a1c]">
-            ₹{perPiece!.toLocaleString("en-IN")}
-          </p>
-          <p className="text-[9px] text-[#b0ada8]">Excl. mold</p>
-        </div>
-
-        <div className="h-10 w-px bg-[#e0deda]" />
-
-        {/* Total per unit */}
-        <div className="min-w-[120px]">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Total per Unit</p>
-          <p className="text-xl font-black tabular-nums text-[#3b6bca]">
-            ₹{totalPerUnit!.toLocaleString("en-IN")}
-          </p>
-          <p className="text-[9px] text-[#b0ada8]">Incl. mold amort.</p>
-        </div>
-
-        <div className="h-10 w-px bg-[#e0deda]" />
-
-        {/* Material selector */}
-        <div className="space-y-1">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Material</p>
-          <select
-            value={material}
-            onChange={(e) => onMaterialChange?.(e.target.value)}
-            className="rounded-md border border-[#e0deda] bg-[#f5f4f0] px-2 py-1 text-xs font-semibold text-[#1a1a1c] focus:outline-none focus:border-[#3b6bca]"
-          >
-            {Object.entries(MATERIALS).map(([key, val]) => (
-              <option key={key} value={key}>{val.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Buttons */}
-        <div className="ml-auto flex items-center gap-2">
-          {onOpenReport && (
-            <button
-              onClick={onOpenReport}
-              className="rounded-lg border border-[#3b6bca] px-3 py-1.5 text-[10px] font-bold text-[#3b6bca] hover:bg-[#eef2fc] transition-colors"
-            >
-              Full report
-            </button>
-          )}
+      {/* Panel header */}
+      <div className="flex items-center justify-between">
+        <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Costing</p>
+        <div className="flex items-center gap-1.5">
           <CostInfoModal />
         </div>
       </div>
 
-      {/* Slider row */}
-      <div className="flex items-center gap-4">
-        <span className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e] w-16 shrink-0">Quantity</span>
+      {/* ── 3 cost figures ── */}
+      <div className="space-y-3">
+
+        {/* Total per unit — hero number */}
+        <div className="rounded-xl border border-[#c8ddf8] bg-[#eef2fc] px-4 py-3">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-[#6a9fd8]">Total per Unit</p>
+          <p className="text-2xl font-black tabular-nums text-[#3b6bca] mt-0.5">
+            ₹{totalPerUnit!.toLocaleString("en-IN")}
+          </p>
+          <p className="text-[9px] text-[#6a9fd8] mt-0.5">Incl. mold amortised over {quantity.toLocaleString("en-IN")} units</p>
+        </div>
+
+        {/* Mold + Per piece side by side */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-3 py-2.5">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Mold Cost</p>
+            <p className="text-base font-black tabular-nums text-[#1a1a1c] mt-0.5">
+              ₹{mold!.total.toLocaleString("en-IN")}
+            </p>
+            <p className="text-[9px] text-[#b0ada8] mt-0.5">{mold!.label}</p>
+            {mold!.surcharge > 0 && (
+              <p className="text-[9px] font-bold text-[#c08010] mt-0.5">
+                ⚠ +{Math.round(mold!.surchargeRate * 100)}% undercut
+              </p>
+            )}
+          </div>
+          <div className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-3 py-2.5">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Per Piece</p>
+            <p className="text-base font-black tabular-nums text-[#1a1a1c] mt-0.5">
+              ₹{perPiece!.toLocaleString("en-IN")}
+            </p>
+            <p className="text-[9px] text-[#b0ada8] mt-0.5">Excl. mold</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="border-t border-[#e0deda]" />
+
+      {/* Material selector */}
+      <div className="space-y-1.5">
+        <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Material</p>
+        <select
+          value={material}
+          onChange={(e) => onMaterialChange?.(e.target.value)}
+          className="w-full rounded-lg border border-[#e0deda] bg-[#f5f4f0] px-3 py-2 text-xs font-semibold text-[#1a1a1c] focus:outline-none focus:border-[#3b6bca]"
+        >
+          {Object.entries(MATERIALS).map(([key, val]) => (
+            <option key={key} value={key}>{val.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Quantity slider */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Quantity</p>
+          <p className="text-sm font-black tabular-nums text-[#1a1a1c]">{quantity.toLocaleString("en-IN")} <span className="text-[9px] font-normal text-[#b0ada8]">units</span></p>
+        </div>
         <input
           type="range"
           min={0}
@@ -211,23 +206,36 @@ const CostBar = ({
           step={1}
           value={stepIndex}
           onChange={handleSlider}
-          className="flex-1 h-1.5 cursor-pointer appearance-none rounded-full accent-[#3b6bca]"
+          className="w-full h-1.5 cursor-pointer appearance-none rounded-full accent-[#3b6bca]"
           style={{ background: "#e0deda" }}
         />
-        <span className="text-sm font-black tabular-nums text-[#1a1a1c] w-16 text-right shrink-0">
-          {quantity.toLocaleString("en-IN")}
-        </span>
-        <span className="text-[9px] text-[#b0ada8]">units</span>
+        <div className="flex justify-between text-[8px] text-[#b0ada8]">
+          {QTY_STEPS.map((q) => (
+            <span key={q} className={quantity === q ? "text-[#3b6bca] font-bold" : ""}>
+              {q >= 1000 ? `${q / 1000}k` : q}
+            </span>
+          ))}
+        </div>
       </div>
 
-      {/* Quantity scale labels */}
-      <div className="flex justify-between px-16 text-[8px] text-[#b0ada8]">
-        {QTY_STEPS.map((q) => (
-          <span key={q} className={quantity === q ? "text-[#3b6bca] font-bold" : ""}>
-            {q >= 1000 ? `${q / 1000}k` : q}
-          </span>
-        ))}
-      </div>
+      {/* Divider */}
+      <div className="border-t border-[#e0deda]" />
+
+      {/* Full report button */}
+      {onOpenReport && (
+        <button
+          onClick={onOpenReport}
+          className="w-full rounded-lg border border-[#3b6bca] bg-white px-4 py-3 text-left transition-all hover:bg-[#eef2fc] group"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-bold text-[#3b6bca]">Read full cost report</p>
+              <p className="text-[10px] text-[#9a9a9e] mt-0.5">Mold · per piece · material · all tiers</p>
+            </div>
+            <span className="text-[#3b6bca] text-base group-hover:translate-x-0.5 transition-transform">→</span>
+          </div>
+        </button>
+      )}
 
     </div>
   );

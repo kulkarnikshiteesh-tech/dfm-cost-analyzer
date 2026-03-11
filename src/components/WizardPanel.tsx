@@ -206,7 +206,6 @@ interface WizardPanelProps {
   onMaterialChange: (m: string) => void;
   onQuantityChange: (q: number) => void;
   onRequestFaceSelection: () => void;
-  onOpenReport?: () => void;
   uploadedData: any;
   quantity: number;
   material: string;
@@ -221,7 +220,6 @@ const WizardPanel = ({
   onMaterialChange,
   onQuantityChange,
   onRequestFaceSelection,
-  onOpenReport,
   uploadedData,
   quantity,
   material,
@@ -558,21 +556,9 @@ const WizardPanel = ({
                   </div>
                 )}
 
-                {/* Read full report button */}
-                {onOpenReport && (
-                  <button
-                    onClick={onOpenReport}
-                    className="w-full rounded-lg border border-[#3b6bca] bg-white px-4 py-3 text-left transition-all hover:bg-[#eef2fc] group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-[11px] font-bold text-[#3b6bca]">Read full cost report</p>
-                        <p className="text-[10px] text-[#9a9a9e] mt-0.5">Mold · per piece · material · all tiers</p>
-                      </div>
-                      <span className="text-[#3b6bca] text-base group-hover:translate-x-0.5 transition-transform">→</span>
-                    </div>
-                  </button>
-                )}
+                <p className="text-[10px] text-[#9a9a9e] leading-relaxed px-1">
+                  Cost estimates are live on the right panel. Adjust quantity or material to see how costs change.
+                </p>
               </div>
             )}
 
