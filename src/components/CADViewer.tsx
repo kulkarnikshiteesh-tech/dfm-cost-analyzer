@@ -11,23 +11,22 @@ const BACKEND = "https://threed-backend-4v3g.onrender.com";
 function paintScene(model: THREE.Object3D, r: number, g: number, b: number) {
   model.traverse((child: any) => {
     if (!child.isMesh || !child.geometry) return;
-    const count  = child.geometry.attributes.position.count;
+    const geo = child.geometry;
+    const count = geo.attributes.position.count;
     const colors = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
       colors[i * 3] = r; colors[i * 3 + 1] = g; colors[i * 3 + 2] = b;
     }
-    child.geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    child.material.vertexColors = true;
-    child.material.needsUpdate  = true;
+    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    if (child.material) {
+      child.material.vertexColors = true;
+      child.material.needsUpdate  = true;
+    }
   });
 }
 
 // ── Highlight the face group best matching clickedNormal ──────────────────────
-// Strategy:
-//   1. Compute average normal per triangle
-//   2. Among all triangles, find the one whose normal is closest to clickedNormal
-//      — this snaps to the dominant plane even if the ray hits a tiny chamfer
-//   3. Highlight all triangles within 5° of that best-match normal (tight group)
+// Geometry is guaranteed non-indexed at this point (converted in loadGlb).
 function highlightFaceGroup(model: THREE.Object3D, clickedNormal: THREE.Vector3) {
   model.traverse((child: any) => {
     if (!child.isMesh || !child.geometry) return;
@@ -39,7 +38,7 @@ function highlightFaceGroup(model: THREE.Object3D, clickedNormal: THREE.Vector3)
     const vertCount = posAttr.count;
     const triCount  = Math.floor(vertCount / 3);
 
-    // Step 1 — per-triangle world-space normals
+    // Per-triangle world-space normals
     const triNormals: THREE.Vector3[] = [];
     for (let t = 0; t < triCount; t++) {
       const i  = t * 3;
@@ -51,7 +50,7 @@ function highlightFaceGroup(model: THREE.Object3D, clickedNormal: THREE.Vector3)
       );
     }
 
-    // Step 2 — find triangle with normal closest to clickedNormal
+    // Find best matching triangle normal to the clicked ray
     let bestDot    = -Infinity;
     let bestNormal = clickedNormal.clone();
     for (const tn of triNormals) {
@@ -59,21 +58,22 @@ function highlightFaceGroup(model: THREE.Object3D, clickedNormal: THREE.Vector3)
       if (d > bestDot) { bestDot = d; bestNormal = tn.clone(); }
     }
 
-    // Step 3 — highlight all triangles within ~5° of bestNormal (cos5° ≈ 0.996)
-    const TIGHT   = 0.996;
-    const colors  = new Float32Array(vertCount * 3);
+    // Color: yellow for matched face group, blue for rest
+    const TIGHT  = 0.996; // ~5°
+    const colors = new Float32Array(vertCount * 3);
     for (let t = 0; t < triCount; t++) {
       const match = triNormals[t].dot(bestNormal) > TIGHT;
       for (let v = 0; v < 3; v++) {
-        const idx = (t * 3 + v);
+        const idx = t * 3 + v;
         if (match) {
           colors[idx*3]=1.0; colors[idx*3+1]=0.85; colors[idx*3+2]=0.0; // yellow
         } else {
-          colors[idx*3]=0.23; colors[idx*3+1]=0.42; colors[idx*3+2]=0.79; // blue
+          colors[idx*3]=0.36; colors[idx*3+1]=0.56; colors[idx*3+2]=0.9; // blue
         }
       }
     }
     geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    geo.attributes.color.needsUpdate = true;
     child.material.vertexColors = true;
     child.material.needsUpdate  = true;
   });
@@ -224,6 +224,7 @@ const CADViewer = ({
     loader.load(url, (gltf) => {
       const model = gltf.scene;
 
+      // Scale + centre
       const box    = new THREE.Box3().setFromObject(model);
       const size   = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
@@ -232,22 +233,36 @@ const CADViewer = ({
       const center = box.getCenter(new THREE.Vector3());
       model.position.sub(center.multiplyScalar(scale));
 
-      // Always paint solid lighter blue — backend GLB has no color info
-      paintScene(model, 0.36, 0.56, 0.9);
-
+      // Single traverse: convert to non-indexed + paint blue + replace material
+      // This must happen BEFORE adding to scene so matrixWorld is computed correctly
+      model.updateMatrixWorld(true);
       model.traverse((child: any) => {
-        if (!child.isMesh) return;
+        if (!child.isMesh || !child.geometry) return;
+
+        // 1. Convert to non-indexed — required for per-triangle face coloring
+        if (child.geometry.index) {
+          child.geometry = child.geometry.toNonIndexed();
+        }
+        child.geometry.computeVertexNormals();
+
+        // 2. Paint uniform blue vertex colors
+        const count  = child.geometry.attributes.position.count;
+        const colors = new Float32Array(count * 3);
+        for (let i = 0; i < count; i++) {
+          colors[i*3]=0.36; colors[i*3+1]=0.56; colors[i*3+2]=0.9;
+        }
+        child.geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
+        // 3. Replace material with CAD-quality shader
         const oldMat = child.material;
         child.material = new THREE.MeshPhysicalMaterial({
-          vertexColors: true,
-          metalness: 0.15,
-          roughness: 0.25,
-          reflectivity: 0.8,
-          clearcoat: 0.5,
+          vertexColors:       true,
+          metalness:          0.15,
+          roughness:          0.25,
+          clearcoat:          0.5,
           clearcoatRoughness: 0.1,
-          envMapIntensity: 0.8,
         });
-        if (oldMat) oldMat.dispose();
+        if (oldMat) { if (Array.isArray(oldMat)) oldMat.forEach(m => m.dispose()); else oldMat.dispose(); }
       });
 
       scene.add(model);
@@ -275,6 +290,10 @@ const CADViewer = ({
     // Don't register clicks on the overlay cards
     if ((e.target as HTMLElement).closest("[data-overlay]")) return;
 
+    // If a face is already highlighted and waiting for Analyse — don't re-select on model click
+    // User must explicitly click Cancel to reset
+    if (pendingNormal) return;
+
     const mount  = mountRef.current!;
     const rect   = mount.getBoundingClientRect();
     const mouse  = new THREE.Vector2(
@@ -297,7 +316,7 @@ const CADViewer = ({
       // Highlight the face group immediately
       highlightFaceGroup(modelRef.current!, normal);
     }
-  }, [selectionMode, confirmed, analysing]);
+  }, [selectionMode, confirmed, analysing, pendingNormal]);
 
   // ── Analyse ───────────────────────────────────────────────────────────────
   const handleAnalyse = async () => {
@@ -366,7 +385,7 @@ const CADViewer = ({
 
       {/* Prompt — waiting for face click */}
       {selectionMode && !pendingNormal && !analysing && !confirmed && hasModel && (
-        <div data-overlay className="absolute top-4 left-1/2 z-10 -translate-x-1/2 pointer-events-none">
+        <div data-overlay className="absolute top-4 right-4 z-10 pointer-events-none">
           <div className="rounded-xl border border-[#e0a020]/50 bg-white/95 px-5 py-3 text-center shadow-lg backdrop-blur-sm">
             <p className="text-xs font-semibold text-[#c08010]">Select Top / Bottom face</p>
             <p className="mt-1 text-[10px] text-[#9a9a9e]">Click a face — it highlights yellow, then analyse</p>
@@ -376,7 +395,7 @@ const CADViewer = ({
 
       {/* Face highlighted — Analyse + Cancel */}
       {selectionMode && pendingNormal && !analysing && !latestResult && !confirmed && (
-        <div data-overlay className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
+        <div data-overlay className="absolute top-4 right-4 z-10">
           <div className="rounded-xl border border-[#e0deda] bg-white/98 px-5 py-4 shadow-lg backdrop-blur-sm text-center">
             <p className="text-[10px] uppercase tracking-widest text-[#9a9a9e] mb-1">Face selected</p>
             <p className="text-xs text-[#6a6a6e] mb-3">Yellow face highlighted — click Analyse to check undercuts</p>
@@ -400,7 +419,7 @@ const CADViewer = ({
 
       {/* Analysing spinner */}
       {analysing && (
-        <div data-overlay className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
+        <div data-overlay className="absolute top-4 right-4 z-10">
           <div className="flex items-center gap-2.5 rounded-xl border border-[#e0deda] bg-white/98 px-5 py-3 shadow-lg backdrop-blur-sm">
             <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#3b6bca] border-t-transparent" />
             <span className="text-[11px] font-semibold text-[#6a6a6e]">Analysing…</span>
@@ -410,7 +429,7 @@ const CADViewer = ({
 
       {/* Result — Accept as Top / Bottom face? */}
       {latestResult && !analysing && !confirmed && (
-        <div data-overlay className="absolute top-4 left-1/2 z-10 -translate-x-1/2 w-80">
+        <div data-overlay className="absolute top-4 right-4 z-10 w-72">
           <div className="rounded-xl border border-[#e0deda] bg-white/98 px-5 py-4 shadow-lg backdrop-blur-sm">
             <div className={`rounded-lg px-3 py-2 mb-3 ${
               latestResult.has_undercuts
@@ -430,7 +449,7 @@ const CADViewer = ({
                   : "✓ No undercut risk"}
               </p>
               <p className="text-[10px] text-[#6a6a6e] mt-0.5 leading-snug">{latestResult.undercut_message}</p>
-              <p className="text-[10px] text-[#9a9a9e] mt-1 italic">Cost bar updated for this face</p>
+              <p className="text-[10px] text-[#9a9a9e] mt-1 italic">Cost updated for this face</p>
             </div>
             <p className="text-[11px] font-bold text-[#1a1a1c] text-center mb-2">
               Accept as Top / Bottom face?
@@ -455,7 +474,7 @@ const CADViewer = ({
 
       {/* Confirmed */}
       {confirmed && (
-        <div data-overlay className="absolute top-4 left-1/2 z-10 -translate-x-1/2">
+        <div data-overlay className="absolute top-4 right-4 z-10">
           <div className="flex items-center gap-2.5 rounded-xl border border-[#c8ecd0] bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur-sm">
             <span className="text-[#4caf72]">✓</span>
             <span className="text-[11px] font-semibold text-[#4caf72]">Top / Bottom face confirmed</span>
