@@ -15,6 +15,7 @@ const Index = () => {
   const [selectionMode, setSelectionMode] = useState(false);
   const [faceConfirmed, setFaceConfirmed] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [recommendedMaterial, setRecommendedMaterial] = useState<string | null>(null);
 
   const handleUploadSuccess = (data: any) => {
     setGlbUrl(data.glb_url);
@@ -95,6 +96,7 @@ const Index = () => {
             onRequestFaceSelection={handleRequestFaceSelection}
             faceConfirmed={faceConfirmed}
             analysisData={analysisData}
+            onRecommendationChange={setRecommendedMaterial}
           />
           {/* DFM Feedback sits below wizard in left panel */}
           {analysisData && (
@@ -137,6 +139,7 @@ const Index = () => {
             onMaterialChange={setMaterial}
             onQuantityChange={setQuantity}
             onOpenReport={canShowReport ? () => setShowReport(true) : undefined}
+            recommendedMaterial={recommendedMaterial}
           />
         </aside>
 
