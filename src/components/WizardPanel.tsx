@@ -206,6 +206,7 @@ interface WizardPanelProps {
   onMaterialChange: (m: string) => void;
   onQuantityChange: (q: number) => void;
   onRequestFaceSelection: () => void;
+  onRecommendationChange?: (materialId: string) => void;
   uploadedData: any;
   quantity: number;
   material: string;
@@ -220,6 +221,7 @@ const WizardPanel = ({
   onMaterialChange,
   onQuantityChange,
   onRequestFaceSelection,
+  onRecommendationChange,
   uploadedData,
   quantity,
   material,
@@ -314,6 +316,7 @@ const WizardPanel = ({
     const rec = recommendMaterial(answers as Answers);
     setRecommendation(rec);
     if (!materialOverridden) onMaterialChange(rec.id);
+    onRecommendationChange?.(rec.id);
     setStep(3);
     onRequestFaceSelection();
   };
@@ -491,20 +494,11 @@ const WizardPanel = ({
           <div className="space-y-3">
 
             {recommendation && (
-              <div className="rounded-lg border border-[#c8ddf8] bg-[#eef2fc] px-3 py-3 space-y-2">
+              <div className="rounded-lg border border-[#c8ddf8] bg-[#eef2fc] px-3 py-3 space-y-1.5">
                 <p className="text-[9px] font-bold uppercase tracking-widest text-[#6a9fd8]">Recommended material</p>
                 <p className="text-sm font-black text-[#1a1a1c]">{recommendation.label}</p>
                 <p className="text-[11px] text-[#6a6a6e] leading-relaxed">{recommendation.reason}</p>
-                <div className="pt-1">
-                  <p className="text-[9px] text-[#9a9a9e] mb-1">Override:</p>
-                  <select
-                    value={material}
-                    onChange={(e) => { onMaterialChange(e.target.value); setMaterialOverridden(true); }}
-                    className="w-full rounded-md border border-[#e0deda] bg-white px-2 py-1 text-xs font-semibold text-[#1a1a1c] focus:outline-none focus:border-[#3b6bca]"
-                  >
-                    {MATERIALS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-                  </select>
-                </div>
+                <p className="text-[10px] text-[#9a9a9e] pt-1">To override, use the material selector on the right panel.</p>
               </div>
             )}
 
