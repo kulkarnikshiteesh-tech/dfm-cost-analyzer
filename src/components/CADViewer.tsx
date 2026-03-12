@@ -21,65 +21,6 @@ function SpinningCube() {
   );
 }
 
-// ── Highlight mesh overlay on clicked face group ──────────────────────────────
-function applyFaceHighlight(scene: THREE.Object3D, clickedNormal: THREE.Vector3 | null) {
-  const DOT_THRESHOLD = 0.97;
-
-  // Must update world matrices before transforming normals
-  scene.updateMatrixWorld(true);
-
-  scene.traverse((child: any) => {
-    if (!child.isMesh || !child.geometry) return;
-
-    // Convert to non-indexed (idempotent — geometry.index is null after first call)
-    if (child.geometry.index) {
-      child.geometry = child.geometry.toNonIndexed();
-      child.geometry.computeVertexNormals();
-      // Re-enable vertex colors on the material after geometry swap
-      if (child.material) {
-        child.material.vertexColors = true;
-        child.material.needsUpdate = true;
-      }
-    }
-
-    const geo = child.geometry;
-    const posAttr    = geo.attributes.position;
-    const normalAttr = geo.attributes.normal;
-    if (!posAttr || !normalAttr) return;
-
-    const count    = posAttr.count;
-    const triCount = Math.floor(count / 3);
-    const colors   = new Float32Array(count * 3);
-
-    for (let t = 0; t < triCount; t++) {
-      let highlight = false;
-      if (clickedNormal) {
-        const i  = t * 3;
-        const nx = (normalAttr.getX(i) + normalAttr.getX(i+1) + normalAttr.getX(i+2)) / 3;
-        const ny = (normalAttr.getY(i) + normalAttr.getY(i+1) + normalAttr.getY(i+2)) / 3;
-        const nz = (normalAttr.getZ(i) + normalAttr.getZ(i+1) + normalAttr.getZ(i+2)) / 3;
-        const faceNormal = new THREE.Vector3(nx, ny, nz)
-          .transformDirection(child.matrixWorld)
-          .normalize();
-        highlight = faceNormal.dot(clickedNormal) > DOT_THRESHOLD;
-      }
-      for (let v = 0; v < 3; v++) {
-        const idx = t * 3 + v;
-        if (highlight) {
-          colors[idx*3]=1.0; colors[idx*3+1]=0.85; colors[idx*3+2]=0.0; // yellow
-        } else {
-          colors[idx*3]=0.36; colors[idx*3+1]=0.56; colors[idx*3+2]=0.9; // blue
-        }
-      }
-    }
-
-    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    geo.attributes.color.needsUpdate = true;
-    child.material.vertexColors = true;
-    child.material.needsUpdate  = true;
-  });
-}
-
 // ── GLB model ─────────────────────────────────────────────────────────────────
 function GLBModel({
   url,
@@ -91,12 +32,12 @@ function GLBModel({
   highlightNormal: THREE.Vector3 | null;
 }) {
   const { scene } = useGLTF(url, true);
+  const highlightDirtyRef = useRef(true);
 
-  // Scale + centre on first load
+  // Scale + centre + prepare geometry on first load
   useEffect(() => {
     scene.traverse((child: any) => {
       if (!child.isMesh || !child.geometry) return;
-      // Convert to non-indexed once at load — required for per-triangle face colouring
       if (child.geometry.index) {
         child.geometry = child.geometry.toNonIndexed();
         child.geometry.computeVertexNormals();
@@ -105,7 +46,6 @@ function GLBModel({
       child.material = (Array.isArray(oldMat) ? oldMat[0] : oldMat).clone();
       child.material.metalness = 0.1;
       child.material.roughness = 0.4;
-      // Paint initial blue vertex colours
       const count = child.geometry.attributes.position.count;
       const colors = new Float32Array(count * 3);
       for (let i = 0; i < count; i++) {
@@ -122,12 +62,64 @@ function GLBModel({
     scene.scale.setScalar(scale);
     const center = box.getCenter(new THREE.Vector3());
     scene.position.sub(center.multiplyScalar(scale));
+    highlightDirtyRef.current = true;
   }, [scene]);
 
-  // Apply highlight whenever highlightNormal changes
+  // Mark dirty whenever highlightNormal changes
   useEffect(() => {
-    applyFaceHighlight(scene, highlightNormal);
-  }, [scene, highlightNormal]);
+    highlightDirtyRef.current = true;
+  }, [highlightNormal]);
+
+  // Apply highlight inside useFrame — matrixWorld is guaranteed current here
+  useFrame(() => {
+    if (!highlightDirtyRef.current) return;
+    highlightDirtyRef.current = false;
+
+    const DOT_THRESHOLD = 0.97;
+    scene.traverse((child: any) => {
+      if (!child.isMesh || !child.geometry) return;
+      if (child.geometry.index) {
+        child.geometry = child.geometry.toNonIndexed();
+        child.geometry.computeVertexNormals();
+        child.material.vertexColors = true;
+        child.material.needsUpdate = true;
+      }
+      const geo        = child.geometry;
+      const normalAttr = geo.attributes.normal;
+      const posAttr    = geo.attributes.position;
+      if (!posAttr || !normalAttr) return;
+
+      const count    = posAttr.count;
+      const triCount = Math.floor(count / 3);
+      const colors   = new Float32Array(count * 3);
+
+      for (let t = 0; t < triCount; t++) {
+        let highlight = false;
+        if (highlightNormal) {
+          const i  = t * 3;
+          const nx = (normalAttr.getX(i) + normalAttr.getX(i+1) + normalAttr.getX(i+2)) / 3;
+          const ny = (normalAttr.getY(i) + normalAttr.getY(i+1) + normalAttr.getY(i+2)) / 3;
+          const nz = (normalAttr.getZ(i) + normalAttr.getZ(i+1) + normalAttr.getZ(i+2)) / 3;
+          const faceNormal = new THREE.Vector3(nx, ny, nz)
+            .transformDirection(child.matrixWorld)
+            .normalize();
+          highlight = faceNormal.dot(highlightNormal) > DOT_THRESHOLD;
+        }
+        for (let v = 0; v < 3; v++) {
+          const idx = t * 3 + v;
+          if (highlight) {
+            colors[idx*3]=1.0; colors[idx*3+1]=0.15; colors[idx*3+2]=0.1; // red
+          } else {
+            colors[idx*3]=0.36; colors[idx*3+1]=0.56; colors[idx*3+2]=0.9; // blue
+          }
+        }
+      }
+      geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      geo.attributes.color.needsUpdate = true;
+      child.material.vertexColors = true;
+      child.material.needsUpdate  = true;
+    });
+  });
 
   const handleClick = useCallback((e: any) => {
     e.stopPropagation();
