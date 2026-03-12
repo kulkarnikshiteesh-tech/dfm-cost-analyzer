@@ -24,13 +24,22 @@ function SpinningCube() {
 // ── Highlight mesh overlay on clicked face group ──────────────────────────────
 function applyFaceHighlight(scene: THREE.Object3D, clickedNormal: THREE.Vector3 | null) {
   const DOT_THRESHOLD = 0.97;
+
+  // Must update world matrices before transforming normals
+  scene.updateMatrixWorld(true);
+
   scene.traverse((child: any) => {
     if (!child.isMesh || !child.geometry) return;
 
-    // Convert to non-indexed so every 3 vertices = 1 triangle with consistent normals
+    // Convert to non-indexed (idempotent — geometry.index is null after first call)
     if (child.geometry.index) {
       child.geometry = child.geometry.toNonIndexed();
       child.geometry.computeVertexNormals();
+      // Re-enable vertex colors on the material after geometry swap
+      if (child.material) {
+        child.material.vertexColors = true;
+        child.material.needsUpdate = true;
+      }
     }
 
     const geo = child.geometry;
@@ -38,16 +47,14 @@ function applyFaceHighlight(scene: THREE.Object3D, clickedNormal: THREE.Vector3 
     const normalAttr = geo.attributes.normal;
     if (!posAttr || !normalAttr) return;
 
-    const count  = posAttr.count;
-    const colors = new Float32Array(count * 3);
-
-    // Process per-triangle (every 3 verts)
+    const count    = posAttr.count;
     const triCount = Math.floor(count / 3);
+    const colors   = new Float32Array(count * 3);
+
     for (let t = 0; t < triCount; t++) {
       let highlight = false;
       if (clickedNormal) {
-        // Average the 3 vertex normals of this triangle for a stable face normal
-        const i = t * 3;
+        const i  = t * 3;
         const nx = (normalAttr.getX(i) + normalAttr.getX(i+1) + normalAttr.getX(i+2)) / 3;
         const ny = (normalAttr.getY(i) + normalAttr.getY(i+1) + normalAttr.getY(i+2)) / 3;
         const nz = (normalAttr.getZ(i) + normalAttr.getZ(i+1) + normalAttr.getZ(i+2)) / 3;

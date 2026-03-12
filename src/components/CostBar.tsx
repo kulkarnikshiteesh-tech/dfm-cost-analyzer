@@ -105,6 +105,7 @@ interface CostBarProps {
   onMaterialChange?: (m: string) => void;
   onQuantityChange?: (q: number) => void;
   onOpenReport?: () => void;
+  recommendedMaterial?: string | null;
 }
 
 const CostBar = ({
@@ -117,6 +118,7 @@ const CostBar = ({
   onMaterialChange,
   onQuantityChange,
   onOpenReport,
+  recommendedMaterial,
 }: CostBarProps) => {
   const hasData = !!volumeCubicMm && !!boundingBox;
 
@@ -184,7 +186,7 @@ const CostBar = ({
             <p className="text-[9px] text-[#b0ada8] mt-0.5">{mold!.label}</p>
             {mold!.surcharge > 0 && (
               <p className="text-[9px] font-bold text-[#c08010] mt-0.5">
-                ⚠ +{Math.round(mold!.surchargeRate * 100)}% undercut
+                ⚠ +{Math.round(mold!.surchargeRate * 100)}% tooling cost
               </p>
             )}
           </div>
@@ -213,6 +215,16 @@ const CostBar = ({
             <option key={key} value={key}>{val.label}</option>
           ))}
         </select>
+
+        {/* Warning when user overrides the recommended material */}
+        {recommendedMaterial && material !== recommendedMaterial && (
+          <div className="rounded-lg border border-[#fcd34d] bg-[#fffbf0] px-3 py-2.5 space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-[#c08010]">⚠ Not recommended</p>
+            <p className="text-[10px] text-[#6a6a6e] leading-relaxed">
+              Switching to <span className="font-semibold text-[#1a1a1c]">{MATERIALS[material as keyof typeof MATERIALS]?.label}</span> may not give desired results for your part. The wizard recommended <span className="font-semibold text-[#3b6bca]">{MATERIALS[recommendedMaterial as keyof typeof MATERIALS]?.label}</span> based on your answers.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Quantity slider */}
