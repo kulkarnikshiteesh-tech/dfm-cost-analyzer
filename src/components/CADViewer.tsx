@@ -44,7 +44,8 @@ function GLBModel({
       if (!child.isMesh || !child.geometry) return;
       if (child.geometry.index) {
         child.geometry = child.geometry.toNonIndexed();
-        child.geometry.computeVertexNormals();
+        // Do NOT recompute normals — keep original flat face normals from the STEP/GLB
+        // These match the trimesh face normals the backend uses for undercut detection
       }
       const oldMat = child.material;
       child.material = (Array.isArray(oldMat) ? oldMat[0] : oldMat).clone();
@@ -84,7 +85,7 @@ function GLBModel({
       if (!child.isMesh || !child.geometry) return;
       if (child.geometry.index) {
         child.geometry = child.geometry.toNonIndexed();
-        child.geometry.computeVertexNormals();
+        // Keep original normals — do NOT recompute
         child.material.vertexColors = true;
         child.material.needsUpdate = true;
       }
@@ -109,21 +110,18 @@ function GLBModel({
         let r = 0.36, g = 0.56, b = 0.9; // default blue
 
         if (pullDirection) {
-          // After analysis: color by reachability from pull direction
-          // Reachable from top OR bottom = not an undercut
           const dotPull = faceNormal.dot(pullDirection);
-          if (Math.abs(dotPull) < 0.01) {
-            // Perpendicular — side walls, borderline
-            r=0.9; g=0.7; b=0.1; // amber
-          } else if (dotPull <= 0) {
-            // Unreachable = undercut — red
-            r=0.9; g=0.15; b=0.1;
+          if (dotPull > 0.087) {
+            r=1.0; g=0.85; b=0.0;   // yellow — undercut
+          } else if (dotPull < -0.087) {
+            r=1.0; g=0.85; b=0.0;   // yellow — undercut
+          } else {
+            r=0.36; g=0.56; b=0.9;  // blue — reachable
           }
-          // else reachable = keep blue
         } else if (highlightNormal) {
-          // Face selection mode: highlight selected face group yellow
+          // Face selection mode: highlight selected face group red
           if (faceNormal.dot(highlightNormal) > 0.97) {
-            r=1.0; g=0.85; b=0.0; // yellow
+            r=0.9; g=0.15; b=0.1; // red
           }
         }
 
