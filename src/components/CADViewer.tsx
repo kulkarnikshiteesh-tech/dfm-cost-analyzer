@@ -26,13 +26,17 @@ function GLBModel({
   url,
   onFaceClick,
   highlightNormal,
+  pullDirection,
 }: {
   url: string;
   onFaceClick: (normal: THREE.Vector3) => void;
   highlightNormal: THREE.Vector3 | null;
+  pullDirection: THREE.Vector3 | null;
 }) {
   const { scene } = useGLTF(url, true);
-  const highlightDirtyRef = useRef(true);
+  const colorDirtyRef = useRef(true);
+  const prevHighlight = useRef<THREE.Vector3 | null>(null);
+  const prevPull = useRef<THREE.Vector3 | null>(null);
 
   // Scale + centre + prepare geometry on first load
   useEffect(() => {
@@ -62,20 +66,20 @@ function GLBModel({
     scene.scale.setScalar(scale);
     const center = box.getCenter(new THREE.Vector3());
     scene.position.sub(center.multiplyScalar(scale));
-    highlightDirtyRef.current = true;
+    colorDirtyRef.current = true;
   }, [scene]);
 
-  // Mark dirty whenever highlightNormal changes
-  useEffect(() => {
-    highlightDirtyRef.current = true;
-  }, [highlightNormal]);
+  useEffect(() => { colorDirtyRef.current = true; }, [highlightNormal, pullDirection]);
 
-  // Apply highlight inside useFrame — matrixWorld is guaranteed current here
+  // All coloring happens inside useFrame — matrixWorld is guaranteed current
   useFrame(() => {
-    if (!highlightDirtyRef.current) return;
-    highlightDirtyRef.current = false;
+    if (!colorDirtyRef.current) return;
+    // Only skip if nothing changed
+    if (prevHighlight.current === highlightNormal && prevPull.current === pullDirection) return;
+    colorDirtyRef.current = false;
+    prevHighlight.current = highlightNormal;
+    prevPull.current = pullDirection;
 
-    const DOT_THRESHOLD = 0.97;
     scene.traverse((child: any) => {
       if (!child.isMesh || !child.geometry) return;
       if (child.geometry.index) {
@@ -94,24 +98,38 @@ function GLBModel({
       const colors   = new Float32Array(count * 3);
 
       for (let t = 0; t < triCount; t++) {
-        let highlight = false;
-        if (highlightNormal) {
-          const i  = t * 3;
-          const nx = (normalAttr.getX(i) + normalAttr.getX(i+1) + normalAttr.getX(i+2)) / 3;
-          const ny = (normalAttr.getY(i) + normalAttr.getY(i+1) + normalAttr.getY(i+2)) / 3;
-          const nz = (normalAttr.getZ(i) + normalAttr.getZ(i+1) + normalAttr.getZ(i+2)) / 3;
-          const faceNormal = new THREE.Vector3(nx, ny, nz)
-            .transformDirection(child.matrixWorld)
-            .normalize();
-          highlight = faceNormal.dot(highlightNormal) > DOT_THRESHOLD;
+        const i  = t * 3;
+        const nx = (normalAttr.getX(i) + normalAttr.getX(i+1) + normalAttr.getX(i+2)) / 3;
+        const ny = (normalAttr.getY(i) + normalAttr.getY(i+1) + normalAttr.getY(i+2)) / 3;
+        const nz = (normalAttr.getZ(i) + normalAttr.getZ(i+1) + normalAttr.getZ(i+2)) / 3;
+        const faceNormal = new THREE.Vector3(nx, ny, nz)
+          .transformDirection(child.matrixWorld)
+          .normalize();
+
+        let r = 0.36, g = 0.56, b = 0.9; // default blue
+
+        if (pullDirection) {
+          // After analysis: color by reachability from pull direction
+          // Reachable from top OR bottom = not an undercut
+          const dotPull = faceNormal.dot(pullDirection);
+          if (Math.abs(dotPull) < 0.01) {
+            // Perpendicular — side walls, borderline
+            r=0.9; g=0.7; b=0.1; // amber
+          } else if (dotPull <= 0) {
+            // Unreachable = undercut — red
+            r=0.9; g=0.15; b=0.1;
+          }
+          // else reachable = keep blue
+        } else if (highlightNormal) {
+          // Face selection mode: highlight selected face group yellow
+          if (faceNormal.dot(highlightNormal) > 0.97) {
+            r=1.0; g=0.85; b=0.0; // yellow
+          }
         }
+
         for (let v = 0; v < 3; v++) {
           const idx = t * 3 + v;
-          if (highlight) {
-            colors[idx*3]=1.0; colors[idx*3+1]=0.15; colors[idx*3+2]=0.1; // red
-          } else {
-            colors[idx*3]=0.36; colors[idx*3+1]=0.56; colors[idx*3+2]=0.9; // blue
-          }
+          colors[idx*3]=r; colors[idx*3+1]=g; colors[idx*3+2]=b;
         }
       }
       geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
@@ -163,37 +181,30 @@ const CADViewer = ({
   onTryAnother,
   analysisComplete = false,
 }: CADViewerProps) => {
-  // The GLB shown in the viewer — starts as uploadGlb, updated after each analysis
   const [viewerGlbUrl, setViewerGlbUrl] = useState<string | null>(null);
   const [highlightNormal, setHighlightNormal] = useState<THREE.Vector3 | null>(null);
+  const [pullDirection, setPullDirection] = useState<THREE.Vector3 | null>(null);
   const [pendingNormal, setPendingNormal] = useState<THREE.Vector3 | null>(null);
   const [analysing, setAnalysing] = useState(false);
   const [latestResult, setLatestResult] = useState<AnalysisResult | null>(null);
   const [confirmed, setConfirmed] = useState(false);
 
-  // Only reset ALL state on a genuinely new upload (filename changes)
-  // NOT on every glbUrl change — analysis results also update glbUrl
+  // Reset all state on new upload
   useEffect(() => {
     setViewerGlbUrl(glbUrl ?? null);
     setHighlightNormal(null);
+    setPullDirection(null);
     setPendingNormal(null);
     setAnalysing(false);
     setLatestResult(null);
     setConfirmed(false);
-  }, [uploadGlbFilename]); // <-- key fix: track filename, not full URL
+  }, [uploadGlbFilename]);
 
-  // Keep viewer URL in sync with glbUrl without resetting state
-  useEffect(() => {
-    if (glbUrl && !analysing) {
-      // Only update viewer URL if we don't have a pending analysis result
-      // (analysis sets viewerGlbUrl directly inside handleAnalyse)
-    }
-  }, [glbUrl]);
-
-  // Re-enter selection mode (user went back or changed face)
+  // Re-enter selection mode
   useEffect(() => {
     if (selectionMode) {
       setHighlightNormal(null);
+      setPullDirection(null);
       setPendingNormal(null);
       setLatestResult(null);
       setConfirmed(false);
@@ -202,10 +213,10 @@ const CADViewer = ({
 
   const handleFaceClick = useCallback((normal: THREE.Vector3) => {
     if (!selectionMode || confirmed || analysing) return;
-    // If a face is already highlighted, don't re-select — user must Cancel first
     if (pendingNormal) return;
     setHighlightNormal(normal.clone());
     setPendingNormal(normal.clone());
+    setPullDirection(null); // clear any previous analysis coloring
     setLatestResult(null);
   }, [selectionMode, confirmed, analysing, pendingNormal]);
 
@@ -226,10 +237,9 @@ const CADViewer = ({
         if (data.glb_url?.startsWith("/static/")) {
           data.glb_url = BACKEND + data.glb_url;
         }
-        // Update viewer to coloured GLB from backend, but keep highlight off
-        // (backend GLB already has undercut colours)
-        setViewerGlbUrl(data.glb_url);
-        setHighlightNormal(null); // backend colouring takes over
+        // Don't swap the GLB — color the existing model using pull direction
+        setHighlightNormal(null);
+        setPullDirection(pendingNormal.clone()); // triggers undercut coloring in useFrame
         setLatestResult(data);
         onAnalysisResult?.(data, { x: pendingNormal.x, y: pendingNormal.y, z: pendingNormal.z });
       }
@@ -241,18 +251,18 @@ const CADViewer = ({
   };
 
   const handleTryAnother = () => {
-    // Go back to original upload GLB so user sees clean model
-    setViewerGlbUrl(glbUrl ?? null);
     setHighlightNormal(null);
+    setPullDirection(null); // clears undercut coloring — model goes back to flat blue
     setPendingNormal(null);
     setLatestResult(null);
     setConfirmed(false);
-    onTryAnother?.(); // tell Index to re-enable selectionMode
+    onTryAnother?.();
   };
 
   const handleConfirm = () => {
     setConfirmed(true);
     setHighlightNormal(null);
+    // Keep pullDirection — so undercut colors remain visible after confirmation
     onFaceConfirmed?.();
   };
 
@@ -376,7 +386,7 @@ const CADViewer = ({
         <directionalLight position={[-4, -4, -4]} intensity={0.1} />
         <Suspense fallback={null}>
           {viewerGlbUrl
-            ? <GLBModel url={viewerGlbUrl} onFaceClick={handleFaceClick} highlightNormal={highlightNormal} />
+            ? <GLBModel url={viewerGlbUrl} onFaceClick={handleFaceClick} highlightNormal={highlightNormal} pullDirection={pullDirection} />
             : <SpinningCube />
           }
         </Suspense>
