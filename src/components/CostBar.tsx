@@ -1,4 +1,4 @@
-import { Zap, Wrench, Package } from "lucide-react";
+import { Zap, Wrench, Package, ArrowRight } from "lucide-react";
 import CostInfoModal from "./CostInfoModal";
 
 const MATERIALS: Record<string, { density: number; pricePerKg: number; label: string }> = {
@@ -25,73 +25,41 @@ const OVERHEAD = 1.25;
 const SCRAP = 1.05;
 const MARGIN = 1.15;
 const DESIGN_COST = 10000;
-
-const UNDERCUT_SURCHARGE: Record<string, number> = {
-  high: 0.35,
-  moderate: 0.15,
-  low: 0,
-};
-
+const UNDERCUT_SURCHARGE: Record<string, number> = { high: 0.35, moderate: 0.15, low: 0 };
 const QTY_STEPS = [100, 250, 500, 1000, 2000, 5000, 10000, 25000, 50000];
 
-function getMoldTier(qty: number) {
-  return MOLD_TIERS.find((t) => qty <= t.maxQty)!;
-}
+function getMoldTier(qty: number) { return MOLD_TIERS.find((t) => qty <= t.maxQty)!; }
 
-function calcMoldCost(
-  vol: number,
-  bb: { x: number; y: number; z: number },
-  qty: number,
-  undercutSeverity?: string | null
-) {
+function calcMoldCost(vol: number, bb: { x: number; y: number; z: number }, qty: number, undercutSeverity?: string | null) {
   const tier = getMoldTier(qty);
   const { x, y, z } = bb;
   const pad = Math.min(25, Math.max(15, Math.max(x, y, z) * 0.12));
   const moldVolCm3 = ((x + pad * 2) * (y + pad * 2) * (z + pad * 2)) / 1000;
-  const steelCost = moldVolCm3 * tier.weightFactor * tier.steelPricePerKg;
-  const machCost = tier.machiningHrs * tier.rate;
-  const baseMold = Math.round((steelCost + machCost + DESIGN_COST) * OVERHEAD);
-  const severity = undercutSeverity ?? "low";
-  const surchargeRate = UNDERCUT_SURCHARGE[severity] ?? 0;
+  const baseMold = Math.round((moldVolCm3 * tier.weightFactor * tier.steelPricePerKg + tier.machiningHrs * tier.rate + DESIGN_COST) * OVERHEAD);
+  const surchargeRate = UNDERCUT_SURCHARGE[undercutSeverity ?? "low"] ?? 0;
   const surchargeCost = Math.round(baseMold * surchargeRate);
-  return {
-    base: baseMold,
-    surcharge: surchargeCost,
-    total: baseMold + surchargeCost,
-    surchargeRate,
-    label: tier.label,
-  };
+  return { base: baseMold, surcharge: surchargeCost, total: baseMold + surchargeCost, surchargeRate, label: tier.label };
 }
 
 function calcPerPiece(vol: number, matKey: string, qty: number) {
   const mat = MATERIALS[matKey] ?? MATERIALS["ABS"];
   const volCm3 = vol / 1000;
   const weightKg = (volCm3 * mat.density) / 1000;
-  const discount = Math.min(0.15, qty / 100000);
-  const matCost = weightKg * mat.pricePerKg * SCRAP * (1 - discount);
-  const efficiency = Math.max(0.75, 1 - Math.log10(Math.max(1, qty)) * 0.05);
-  const cycleHr = (30 * efficiency) / 3600;
-  const piece = (matCost + cycleHr * MACHINE_RATE + cycleHr * OPERATOR_RATE) * OVERHEAD * MARGIN;
-  return Math.round(piece * 100) / 100;
+  const matCost = weightKg * mat.pricePerKg * SCRAP * (1 - Math.min(0.15, qty / 100000));
+  const cycleHr = (30 * Math.max(0.75, 1 - Math.log10(Math.max(1, qty)) * 0.05)) / 3600;
+  return Math.round((matCost + cycleHr * MACHINE_RATE + cycleHr * OPERATOR_RATE) * OVERHEAD * MARGIN * 100) / 100;
 }
 
 function getMoldRec(qty: number) {
-  if (qty <= 500) return `Aluminium soft mold — suitable for <500 shots`;
-  if (qty <= 5000) return `Mild steel semi-soft mold — up to 5,000 shots`;
-  return `H13 hard steel mold — high volume production`;
+  if (qty <= 500) return "Aluminium soft mold — suitable for <500 shots";
+  if (qty <= 5000) return "Mild steel semi-soft mold — up to 5,000 shots";
+  return "H13 hard steel mold — high volume production";
 }
 
 function getMachineSpec(vol: number, bb: { x: number; y: number; z: number }) {
-  const { x, y } = bb;
-  const projected = x > 0 && y > 0 ? (x * y) / 100 : Math.pow(vol, 2 / 3) / 10;
-  let tonnage = Math.max(50, Math.ceil((projected * 0.5) / 10) * 10);
-  if (tonnage > 500) tonnage = 500;
-  const volCm3 = vol / 1000;
-  return {
-    tonnage,
-    shotSize: `${(volCm3 * 1.15).toFixed(1)} cm³`,
-    screwDia: tonnage <= 150 ? "30–45mm" : "50–70mm",
-  };
+  const projected = bb.x > 0 && bb.y > 0 ? (bb.x * bb.y) / 100 : Math.pow(vol, 2 / 3) / 10;
+  const tonnage = Math.min(500, Math.max(50, Math.ceil((projected * 0.5) / 10) * 10));
+  return { tonnage, shotSize: (vol / 1000 * 1.15).toFixed(1), screwDia: tonnage <= 150 ? "30–45mm" : "50–70mm" };
 }
 
 interface CostBarProps {
@@ -109,200 +77,168 @@ interface CostBarProps {
 }
 
 const CostBar = ({
-  volumeCubicMm,
-  boundingBox,
-  material = "ABS",
-  quantity = 1000,
-  hasUndercuts,
-  undercutSeverity,
-  onMaterialChange,
-  onQuantityChange,
-  onOpenReport,
-  recommendedMaterial,
+  volumeCubicMm, boundingBox, material = "ABS", quantity = 1000,
+  hasUndercuts, undercutSeverity, onMaterialChange, onQuantityChange,
+  onOpenReport, recommendedMaterial,
 }: CostBarProps) => {
   const hasData = !!volumeCubicMm && !!boundingBox;
-
-  const stepIndex = QTY_STEPS.reduce(
-    (best, val, i) => (Math.abs(val - quantity) < Math.abs(QTY_STEPS[best] - quantity) ? i : best),
-    0
-  );
-
-  const handleSlider = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onQuantityChange?.(QTY_STEPS[parseInt(e.target.value)]);
-  };
-
+  const stepIndex = QTY_STEPS.reduce((best, val, i) => Math.abs(val - quantity) < Math.abs(QTY_STEPS[best] - quantity) ? i : best, 0);
   const severity = hasUndercuts ? (undercutSeverity ?? "low") : "low";
   const mold = hasData ? calcMoldCost(volumeCubicMm!, boundingBox!, quantity, severity) : null;
   const perPiece = hasData ? calcPerPiece(volumeCubicMm!, material, quantity) : null;
-  const totalPerUnit = mold && perPiece
-    ? Math.round((mold.total + perPiece * quantity) / quantity)
-    : null;
-  const moldRec = hasData ? getMoldRec(quantity) : null;
+  const totalPerUnit = mold && perPiece ? Math.round((mold.total + perPiece * quantity) / quantity) : null;
   const machine = hasData ? getMachineSpec(volumeCubicMm!, boundingBox!) : null;
 
   if (!hasData) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center">
-        <div className="rounded-xl border border-[#e0deda] bg-[#f8f7f4] px-5 py-6 space-y-2">
+      <div className="flex flex-1 flex-col items-center justify-center px-5 py-8 text-center">
+        <div className="w-full rounded-2xl border border-[#e0deda] bg-[#f8f7f4] px-5 py-8 space-y-3">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef2fc]">
+            <span className="text-lg text-[#3b6bca]">₹</span>
+          </div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-[#b0ada8]">Costing</p>
-          <p className="text-[11px] text-[#9a9a9e] leading-relaxed">
-            Upload a model and confirm a top / bottom face to see cost estimates
-          </p>
+          <p className="text-[11px] text-[#9a9a9e] leading-relaxed">Upload a model and confirm a top / bottom face to see cost estimates</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto px-4 py-4 space-y-4" style={{ scrollbarWidth: "none" }}>
+    <div className="flex flex-col h-full overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+      {/* Blue accent bar */}
+      <div style={{ height: 3, background: "#3B6BCA", flexShrink: 0 }} />
 
-      {/* Panel header */}
-      <div className="flex items-center justify-between">
-        <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Costing</p>
-        <div className="flex items-center gap-1.5">
+      <div className="flex flex-col gap-4 px-4 py-4">
+        {/* Panel label */}
+        <div className="flex items-center justify-between">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Costing</p>
           <CostInfoModal />
         </div>
-      </div>
 
-      {/* ── 3 cost figures ── */}
-      <div className="space-y-3">
-
-        {/* Total per unit — hero number */}
-        <div className="rounded-xl border border-[#c8ddf8] bg-[#eef2fc] px-4 py-3">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#6a9fd8]">Total per Unit</p>
-          <p className="text-2xl font-black tabular-nums text-[#3b6bca] mt-0.5">
+        {/* ── Dark hero card ── */}
+        <div className="rounded-2xl px-4 py-4 relative overflow-hidden" style={{ background: "#1A1A1C" }}>
+          <div className="absolute right-[-24px] bottom-[-24px] w-28 h-28 rounded-full" style={{ background: "rgba(91,142,230,0.12)" }} />
+          <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: "#555", letterSpacing: "0.14em" }}>Total per unit</p>
+          <p className="font-black tabular-nums leading-none mb-1" style={{ fontSize: 34, color: "#fff", letterSpacing: "-0.02em" }}>
             ₹{totalPerUnit!.toLocaleString("en-IN")}
           </p>
-          <p className="text-[9px] text-[#6a9fd8] mt-0.5">Incl. mold amortised over {quantity.toLocaleString("en-IN")} units</p>
+          <p className="text-[10px] mb-4" style={{ color: "#555" }}>
+            Incl. mold amortised over {quantity.toLocaleString("en-IN")} units
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-xl px-3 py-2.5" style={{ background: "rgba(255,255,255,0.06)" }}>
+              <p className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "#555" }}>Mold cost</p>
+              <p className="text-sm font-black tabular-nums" style={{ color: "#fff" }}>₹{mold!.total.toLocaleString("en-IN")}</p>
+              <p className="text-[9px] mt-0.5" style={{ color: "#444" }}>{mold!.label}</p>
+              {mold!.surcharge > 0 && (
+                <div className="inline-flex items-center mt-1.5 rounded px-1.5 py-0.5" style={{ background: "rgba(224,160,32,0.18)" }}>
+                  <span className="text-[9px] font-bold" style={{ color: "#E0A020" }}>⚠ +{Math.round(mold!.surchargeRate * 100)}% tooling</span>
+                </div>
+              )}
+            </div>
+            <div className="rounded-xl px-3 py-2.5" style={{ background: "rgba(255,255,255,0.06)" }}>
+              <p className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "#555" }}>Per piece</p>
+              <p className="text-sm font-black tabular-nums" style={{ color: "#fff" }}>₹{perPiece!.toLocaleString("en-IN")}</p>
+              <p className="text-[9px] mt-0.5" style={{ color: "#444" }}>Excl. mold</p>
+            </div>
+          </div>
         </div>
 
-        {/* Mold + Per piece side by side */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-3 py-2.5">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Mold Cost</p>
-            <p className="text-base font-black tabular-nums text-[#1a1a1c] mt-0.5">
-              ₹{mold!.total.toLocaleString("en-IN")}
-            </p>
-            <p className="text-[9px] text-[#b0ada8] mt-0.5">{mold!.label}</p>
-            {mold!.surcharge > 0 && (
-              <p className="text-[9px] font-bold text-[#c08010] mt-0.5">
-                ⚠ +{Math.round(mold!.surchargeRate * 100)}% tooling cost
+        <div className="border-t border-[#e0deda]" />
+
+        {/* Material selector */}
+        <div className="space-y-2">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Material</p>
+          <select
+            value={material}
+            onChange={(e) => onMaterialChange?.(e.target.value)}
+            className="w-full rounded-xl border border-[#e0deda] bg-[#f5f4f0] px-3 py-2.5 text-xs font-semibold text-[#1a1a1c] focus:outline-none focus:border-[#3b6bca] transition-colors"
+          >
+            {Object.entries(MATERIALS).map(([key, val]) => (
+              <option key={key} value={key}>{val.label}</option>
+            ))}
+          </select>
+          {recommendedMaterial && material !== recommendedMaterial && (
+            <div className="rounded-xl border border-[#fcd34d] bg-[#fffbf0] px-3 py-2.5">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-[#c08010] mb-1">⚠ Not recommended</p>
+              <p className="text-[10px] text-[#6a6a6e] leading-relaxed">
+                Wizard recommended <span className="font-semibold text-[#3b6bca]">{MATERIALS[recommendedMaterial as keyof typeof MATERIALS]?.label}</span> for your part.
               </p>
-            )}
-          </div>
-          <div className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-3 py-2.5">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Per Piece</p>
-            <p className="text-base font-black tabular-nums text-[#1a1a1c] mt-0.5">
-              ₹{perPiece!.toLocaleString("en-IN")}
+            </div>
+          )}
+        </div>
+
+        {/* Quantity slider */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Quantity</p>
+            <p className="text-base font-black tabular-nums text-[#1a1a1c]">
+              {quantity.toLocaleString("en-IN")} <span className="text-[9px] font-normal text-[#b0ada8]">units</span>
             </p>
-            <p className="text-[9px] text-[#b0ada8] mt-0.5">Excl. mold</p>
+          </div>
+          <input
+            type="range" min={0} max={QTY_STEPS.length - 1} step={1} value={stepIndex}
+            onChange={handleSlider}
+            className="w-full cursor-pointer appearance-none rounded-full accent-[#3b6bca]"
+            style={{ height: 4, background: "#e0deda" }}
+          />
+          <div className="flex justify-between text-[8px] text-[#b0ada8]">
+            {QTY_STEPS.map((q) => (
+              <span key={q} className={quantity === q ? "text-[#3b6bca] font-bold" : ""}>
+                {q >= 1000 ? `${q / 1000}k` : q}
+              </span>
+            ))}
           </div>
         </div>
-      </div>
 
-      {/* Divider */}
-      <div className="border-t border-[#e0deda]" />
+        <div className="border-t border-[#e0deda]" />
 
-      {/* Material selector */}
-      <div className="space-y-1.5">
-        <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Material</p>
-        <select
-          value={material}
-          onChange={(e) => onMaterialChange?.(e.target.value)}
-          className="w-full rounded-lg border border-[#e0deda] bg-[#f5f4f0] px-3 py-2 text-xs font-semibold text-[#1a1a1c] focus:outline-none focus:border-[#3b6bca]"
-        >
-          {Object.entries(MATERIALS).map(([key, val]) => (
-            <option key={key} value={key}>{val.label}</option>
-          ))}
-        </select>
+        {/* Report button */}
+        {onOpenReport && (
+          <button onClick={onOpenReport} className="w-full rounded-xl border border-[#3b6bca] bg-[#eef2fc] px-4 py-3 text-left transition-all hover:bg-[#dce8fa] group">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-bold text-[#3b6bca]">Read full cost report</p>
+                <p className="text-[10px] mt-0.5" style={{ color: "#9a9aff" }}>Mold · per piece · material · all tiers</p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-[#3b6bca] group-hover:translate-x-0.5 transition-transform" />
+            </div>
+          </button>
+        )}
 
-        {/* Warning when user overrides the recommended material */}
-        {recommendedMaterial && material !== recommendedMaterial && (
-          <div className="rounded-lg border border-[#fcd34d] bg-[#fffbf0] px-3 py-2.5 space-y-1">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-[#c08010]">⚠ Not recommended</p>
-            <p className="text-[10px] text-[#6a6a6e] leading-relaxed">
-              Switching to <span className="font-semibold text-[#1a1a1c]">{MATERIALS[material as keyof typeof MATERIALS]?.label}</span> may not give desired results for your part. The wizard recommended <span className="font-semibold text-[#3b6bca]">{MATERIALS[recommendedMaterial as keyof typeof MATERIALS]?.label}</span> based on your answers.
-            </p>
+        <div className="border-t border-[#e0deda]" />
+
+        {/* Mold rec */}
+        <div className="rounded-xl border border-[#e0deda] bg-[#f8f7f4] px-3 py-3">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e] mb-2">Recommended Mold</p>
+          <div className="flex items-start gap-2.5">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#eef2fc]">
+              <Package className="h-3.5 w-3.5 text-[#3b6bca]" />
+            </div>
+            <span className="text-[11px] text-[#4a4a4e] leading-relaxed">{getMoldRec(quantity)}</span>
+          </div>
+        </div>
+
+        {/* Machine spec — 3 chips */}
+        {machine && (
+          <div className="rounded-xl border border-[#e0deda] bg-[#f8f7f4] px-3 py-3">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e] mb-2">Machine Spec</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { label: "Tonnage", value: `${machine.tonnage}T` },
+                { label: "Shot size", value: `${machine.shotSize} cm³` },
+                { label: "Screw ⌀", value: machine.screwDia },
+              ].map(({ label, value }) => (
+                <div key={label} className="rounded-lg bg-[#f0ede8] px-2 py-2 text-center">
+                  <p className="text-xs font-black font-mono text-[#1a1a1c]">{value}</p>
+                  <p className="text-[8px] text-[#9a9a9e] mt-0.5">{label}</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
+
       </div>
-
-      {/* Quantity slider */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Quantity</p>
-          <p className="text-sm font-black tabular-nums text-[#1a1a1c]">{quantity.toLocaleString("en-IN")} <span className="text-[9px] font-normal text-[#b0ada8]">units</span></p>
-        </div>
-        <input
-          type="range"
-          min={0}
-          max={QTY_STEPS.length - 1}
-          step={1}
-          value={stepIndex}
-          onChange={handleSlider}
-          className="w-full h-1.5 cursor-pointer appearance-none rounded-full accent-[#3b6bca]"
-          style={{ background: "#e0deda" }}
-        />
-        <div className="flex justify-between text-[8px] text-[#b0ada8]">
-          {QTY_STEPS.map((q) => (
-            <span key={q} className={quantity === q ? "text-[#3b6bca] font-bold" : ""}>
-              {q >= 1000 ? `${q / 1000}k` : q}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Divider */}
-      <div className="border-t border-[#e0deda]" />
-
-      {/* Full report button */}
-      {onOpenReport && (
-        <button
-          onClick={onOpenReport}
-          className="w-full rounded-lg border border-[#3b6bca] bg-white px-4 py-3 text-left transition-all hover:bg-[#eef2fc] group"
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-[#3b6bca]">Read full cost report</p>
-              <p className="text-[10px] text-[#9a9a9e] mt-0.5">Mold · per piece · material · all tiers</p>
-            </div>
-            <span className="text-[#3b6bca] text-base group-hover:translate-x-0.5 transition-transform">→</span>
-          </div>
-        </button>
-      )}
-
-      {/* Divider */}
-      <div className="border-t border-[#e0deda]" />
-
-      {/* Recommended mold */}
-      {moldRec && (
-        <div className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-3 py-2.5">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e] mb-1.5">Recommended Mold</p>
-          <div className="flex items-start gap-2">
-            <Package className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#3b6bca]" />
-            <span className="text-[11px] text-[#6a6a6e]">{moldRec}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Machine spec */}
-      {machine && (
-        <div className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-3 py-2.5">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e] mb-1.5">Machine Spec</p>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5">
-              <Zap className="h-3.5 w-3.5 text-[#e0a020]" />
-              <span className="text-xs font-bold font-mono text-[#1a1a1c]">{machine.tonnage}T</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Wrench className="h-3 w-3 text-[#9a9a9e]" />
-              <span className="text-[11px] font-mono text-[#6a6a6e]">{machine.shotSize}</span>
-            </div>
-            <span className="text-[11px] font-mono text-[#b0ada8]">{machine.screwDia}</span>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };
