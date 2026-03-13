@@ -16,8 +16,8 @@ const Index = () => {
   const [faceConfirmed, setFaceConfirmed] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [recommendedMaterial, setRecommendedMaterial] = useState<string | null>(null);
+  const [darkMode, setDarkMode] = useState(false);
 
-  // Derive current wizard step for header
   const wizardStep = !glbUrl ? 1 : !faceConfirmed ? 2 : 3;
 
   const handleUploadSuccess = (data: any) => {
@@ -45,11 +45,19 @@ const Index = () => {
   const stepLabels = ["Upload", "Configure", "Direction"];
   const accentColors = ["#3B6BCA", "#E67E5B", "#5BB87E"];
 
+  // Dark mode tokens
+  const dm = darkMode;
+  const bg      = dm ? "#0F0F11" : "#F5F4F0";
+  const panelBg = dm ? "#18181B" : "#FFFFFF";
+  const border  = dm ? "#2A2A2E" : "#E0DEDA";
+  const ink     = dm ? "#F0EFE8" : "#1A1A1C";
+  const muted   = dm ? "#888" : "#9A9A9E";
+
   return (
-    <div className="flex flex-col font-sans text-[#1a1a1c]" style={{ height: "100vh", overflow: "hidden", background: "#F5F4F0" }}>
+    <div className="flex flex-col font-sans" style={{ height: "100vh", overflow: "hidden", background: bg, color: ink, transition: "background 0.2s, color 0.2s" }}>
 
       {/* ── HEADER ── */}
-      <header className="flex shrink-0 items-center justify-between border-b border-[#e0deda] bg-white px-6" style={{ height: 48 }}>
+      <header className="flex shrink-0 items-center justify-between px-6" style={{ height: 48, background: panelBg, borderBottom: `1px solid ${border}` }}>
         {/* Logo */}
         <div className="flex items-center gap-2.5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "#3B6BCA" }}>
@@ -58,8 +66,8 @@ const Index = () => {
               <circle cx="7" cy="7" r="2" fill="#ffffff"/>
             </svg>
           </div>
-          <span className="text-sm font-black tracking-[0.2em] uppercase text-[#1a1a1c]">Makeable</span>
-          <span className="rounded bg-[#f0ede8] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Beta</span>
+          <span className="text-sm font-black tracking-[0.2em] uppercase" style={{ color: ink }}>Makeable</span>
+          <span className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest" style={{ background: dm ? "#28282C" : "#F0EDE8", color: muted }}>Beta</span>
         </div>
 
         {/* Step indicators — center */}
@@ -70,20 +78,14 @@ const Index = () => {
             const active = wizardStep === n;
             return (
               <div key={n} className="flex items-center gap-1">
-                {n > 1 && <div className="w-5 h-px bg-[#e0deda]" />}
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all" style={active ? { background: `${accentColors[i]}15` } : {}}>
-                  <div
-                    className="flex h-[18px] w-[18px] items-center justify-center rounded-full text-[9px] font-black transition-all"
-                    style={{
-                      background: done ? "#5BB87E" : active ? accentColors[i] : "#f0ede8",
-                      color: done || active ? "#fff" : "#b0ada8",
-                    }}
-                  >
+                {n > 1 && <div className="w-5 h-px" style={{ background: border }} />}
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all" style={active ? { background: `${accentColors[i]}18` } : {}}>
+                  <div className="flex h-[18px] w-[18px] items-center justify-center rounded-full text-[9px] font-black transition-all"
+                    style={{ background: done ? "#5BB87E" : active ? accentColors[i] : dm ? "#2A2A2E" : "#F0EDE8", color: done || active ? "#fff" : muted }}>
                     {done ? "✓" : n}
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest transition-all" style={{
-                    color: done ? "#5BB87E" : active ? accentColors[i] : "#b0ada8",
-                  }}>
+                  <span className="text-[10px] font-bold uppercase tracking-widest transition-all"
+                    style={{ color: done ? "#5BB87E" : active ? accentColors[i] : muted }}>
                     {label}
                   </span>
                 </div>
@@ -92,9 +94,20 @@ const Index = () => {
           })}
         </div>
 
-        {/* Right label */}
-        <div className="text-[10px] uppercase tracking-widest text-[#b0ada8]">
-          DFM · Costing · Manufacturing
+        {/* Right — dark mode toggle */}
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] uppercase tracking-widest" style={{ color: muted }}>{dm ? "Dark" : "Light"}</span>
+          <button
+            onClick={() => setDarkMode(d => !d)}
+            className="relative flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none"
+            style={{ background: dm ? "#3B6BCA" : "#D4D0CA" }}
+            aria-label="Toggle dark mode"
+          >
+            <span className="absolute h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
+              style={{ transform: dm ? "translateX(22px)" : "translateX(2px)" }} />
+            <span className="absolute left-1.5 text-[9px]">{dm ? "" : "☀️"}</span>
+            <span className="absolute right-1.5 text-[9px]">{dm ? "🌙" : ""}</span>
+          </button>
         </div>
       </header>
 
@@ -102,7 +115,7 @@ const Index = () => {
       <div className="flex min-h-0 flex-1">
 
         {/* LEFT — wizard + DFM */}
-        <aside className="flex w-[308px] shrink-0 flex-col border-r border-[#e0deda] bg-white overflow-hidden">
+        <aside className="flex w-[308px] shrink-0 flex-col overflow-hidden" style={{ background: panelBg, borderRight: `1px solid ${border}` }}>
           <WizardPanel
             onUploadSuccess={handleUploadSuccess}
             onAnalysisComplete={(data) => setAnalysisData(data)}
@@ -115,9 +128,10 @@ const Index = () => {
             faceConfirmed={faceConfirmed}
             analysisData={analysisData}
             onRecommendationChange={setRecommendedMaterial}
+            darkMode={darkMode}
           />
           {analysisData && (
-            <div className="shrink-0 border-t border-[#e0deda] overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+            <div className="shrink-0 overflow-y-auto" style={{ borderTop: `1px solid ${border}`, scrollbarWidth: "none" }}>
               <DFMFeedback
                 volumeCubicMm={analysisData.volume_cubic_mm}
                 boundingBox={analysisData.bounding_box_mm ?? null}
@@ -125,6 +139,7 @@ const Index = () => {
                 undercutSeverity={analysisData.undercut_severity}
                 undercutMessage={analysisData.undercut_message}
                 onStartOver={handleStartOver}
+                darkMode={darkMode}
               />
             </div>
           )}
@@ -141,11 +156,12 @@ const Index = () => {
             onTryAnother={handleTryAnother}
             onStartOver={handleStartOver}
             analysisComplete={faceConfirmed}
+            darkMode={darkMode}
           />
         </main>
 
         {/* RIGHT — costing */}
-        <aside className="flex w-[308px] shrink-0 flex-col border-l border-[#e0deda] bg-white overflow-hidden">
+        <aside className="flex w-[308px] shrink-0 flex-col overflow-hidden" style={{ background: panelBg, borderLeft: `1px solid ${border}` }}>
           <CostBar
             volumeCubicMm={analysisData?.volume_cubic_mm}
             boundingBox={analysisData?.bounding_box_mm ?? null}
@@ -158,6 +174,7 @@ const Index = () => {
             onQuantityChange={setQuantity}
             onOpenReport={canShowReport ? () => setShowReport(true) : undefined}
             recommendedMaterial={recommendedMaterial}
+            darkMode={darkMode}
           />
         </aside>
 
