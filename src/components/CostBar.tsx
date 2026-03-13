@@ -120,42 +120,38 @@ const CostBar = ({
       {/* Blue accent bar */}
       <div style={{ height: 3, background: "#3B6BCA", flexShrink: 0 }} />
 
-      <div className="flex flex-col gap-3 px-4 py-3">
+      <div className="flex flex-col gap-2 px-4 py-2">
         {/* Panel label */}
         <div className="flex items-center justify-between">
           <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: muted }}>Costing</p>
           <CostInfoModal />
         </div>
 
-        {/* ── Hero card — always dark, better contrast ── */}
-        <div className="rounded-2xl px-4 py-3 relative overflow-hidden" style={{ background: "#111114" }}>
-          <div className="absolute right-[-24px] bottom-[-24px] w-28 h-28 rounded-full" style={{ background: "rgba(91,142,230,0.15)" }} />
-          {/* Label */}
+        {/* ── Hero card ── */}
+        <div className="rounded-2xl px-4 py-2.5 relative overflow-hidden" style={{ background: "#111114" }}>
+          <div className="absolute right-[-24px] bottom-[-24px] w-24 h-24 rounded-full" style={{ background: "rgba(91,142,230,0.15)" }} />
           <p className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: "#AAA", letterSpacing: "0.14em" }}>Total per unit</p>
-          {/* Big number */}
-          <p className="font-black tabular-nums leading-none mb-0.5" style={{ fontSize: 30, color: "#FFFFFF", letterSpacing: "-0.02em" }}>
+          <p className="font-black tabular-nums leading-none mb-0.5" style={{ fontSize: 22, color: "#FFFFFF", letterSpacing: "-0.02em" }}>
             ₹{totalPerUnit!.toLocaleString("en-IN")}
           </p>
-          {/* Subtitle */}
-          <p className="text-[10px] mb-3" style={{ color: "#AAA" }}>
+          <p className="text-[9px] mb-2" style={{ color: "#AAA" }}>
             Mold amortised · {quantity.toLocaleString("en-IN")} units
           </p>
-          {/* Sub-tiles — visible background */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-xl px-3 py-2" style={{ background: "#2A2A30" }}>
+          <div className="grid grid-cols-2 gap-1.5">
+            <div className="rounded-lg px-3 py-1.5" style={{ background: "#2A2A30" }}>
               <p className="text-[8px] uppercase tracking-widest mb-0.5" style={{ color: "#AAA" }}>Mold cost</p>
-              <p className="text-sm font-black tabular-nums" style={{ color: "#FFF" }}>₹{mold!.total.toLocaleString("en-IN")}</p>
-              <p className="text-[9px] mt-0.5" style={{ color: "#888" }}>{mold!.label}</p>
+              <p className="text-[13px] font-black tabular-nums" style={{ color: "#FFF" }}>₹{mold!.total.toLocaleString("en-IN")}</p>
+              <p className="text-[8px] mt-0.5" style={{ color: "#888" }}>{mold!.label}</p>
               {mold!.surcharge > 0 && (
-                <div className="inline-flex items-center mt-1.5 rounded px-1.5 py-0.5" style={{ background: "rgba(224,160,32,0.2)" }}>
-                  <span className="text-[9px] font-bold" style={{ color: "#E0A020" }}>⚠ +{Math.round(mold!.surchargeRate * 100)}% tooling</span>
+                <div className="inline-flex items-center mt-1 rounded px-1.5 py-0.5" style={{ background: "rgba(224,160,32,0.2)" }}>
+                  <span className="text-[8px] font-bold" style={{ color: "#E0A020" }}>⚠ +{Math.round(mold!.surchargeRate * 100)}% tooling</span>
                 </div>
               )}
             </div>
-            <div className="rounded-xl px-3 py-2" style={{ background: "#2A2A30" }}>
+            <div className="rounded-lg px-3 py-1.5" style={{ background: "#2A2A30" }}>
               <p className="text-[8px] uppercase tracking-widest mb-0.5" style={{ color: "#AAA" }}>Per piece</p>
-              <p className="text-sm font-black tabular-nums" style={{ color: "#FFF" }}>₹{perPiece!.toLocaleString("en-IN")}</p>
-              <p className="text-[9px] mt-0.5" style={{ color: "#888" }}>Excl. mold</p>
+              <p className="text-[13px] font-black tabular-nums" style={{ color: "#FFF" }}>₹{perPiece!.toLocaleString("en-IN")}</p>
+              <p className="text-[8px] mt-0.5" style={{ color: "#888" }}>Excl. mold</p>
             </div>
           </div>
         </div>
@@ -163,12 +159,12 @@ const CostBar = ({
         <div style={{ height: 1, background: border }} />
 
         {/* Material selector */}
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: muted }}>Material</p>
           <select
             value={material}
             onChange={(e) => onMaterialChange?.(e.target.value)}
-            className="w-full rounded-xl px-3 py-2.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#3b6bca] transition-colors"
+            className="w-full rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#3b6bca] transition-colors"
             style={{ border: `1px solid ${border}`, background: selectBg, color: ink }}
           >
             {Object.entries(MATERIALS).map(([key, val]) => (
@@ -176,9 +172,9 @@ const CostBar = ({
             ))}
           </select>
           {recommendedMaterial && material !== recommendedMaterial && (
-            <div className="rounded-xl px-3 py-2.5" style={{ border: "1px solid #C08010", background: dm ? "#2A2200" : "#FFFBF0" }}>
-              <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: "#C08010" }}>⚠ Not recommended</p>
-              <p className="text-[10px] leading-relaxed" style={{ color: dm ? "#BBA060" : "#6A6A6E" }}>
+            <div className="rounded-xl px-3 py-2" style={{ border: "1px solid #C08010", background: dm ? "#2A2200" : "#FFFBF0" }}>
+              <p className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: "#C08010" }}>⚠ Not recommended</p>
+              <p className="text-[10px] leading-snug" style={{ color: dm ? "#BBA060" : "#6A6A6E" }}>
                 Wizard recommended <span className="font-semibold" style={{ color: "#3B6BCA" }}>{MATERIALS[recommendedMaterial as keyof typeof MATERIALS]?.label}</span> for your part.
               </p>
             </div>
@@ -186,10 +182,10 @@ const CostBar = ({
         </div>
 
         {/* Quantity slider */}
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: muted }}>Quantity</p>
-            <p className="text-base font-black tabular-nums" style={{ color: ink }}>
+            <p className="text-sm font-black tabular-nums" style={{ color: ink }}>
               {quantity.toLocaleString("en-IN")} <span className="text-[9px] font-normal" style={{ color: faint }}>units</span>
             </p>
           </div>
@@ -213,12 +209,12 @@ const CostBar = ({
         {/* Report button */}
         {onOpenReport && (
           <button onClick={onOpenReport}
-            className="w-full rounded-xl px-4 py-3 text-left transition-all group"
+            className="w-full rounded-xl px-4 py-2 text-left transition-all group"
             style={{ border: "1px solid #3B6BCA", background: dm ? "#1A2540" : "#EEF2FC" }}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[11px] font-bold" style={{ color: "#3B6BCA" }}>Read full cost report</p>
-                <p className="text-[10px] mt-0.5" style={{ color: "#9A9AFF" }}>Mold · per piece · material · all tiers</p>
+                <p className="text-[9px] mt-0.5" style={{ color: "#9A9AFF" }}>Mold · per piece · material · all tiers</p>
               </div>
               <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" style={{ color: "#3B6BCA" }} />
             </div>
@@ -227,35 +223,29 @@ const CostBar = ({
 
         <div style={{ height: 1, background: border }} />
 
-        {/* Mold rec */}
-        <div className="rounded-xl px-3 py-3" style={{ border: `1px solid ${border}`, background: cardBg }}>
-          <p className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: muted }}>Recommended Mold</p>
-          <div className="flex items-start gap-2.5">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: dm ? "#1E2A3D" : "#EEF2FC" }}>
-              <Package className="h-3.5 w-3.5" style={{ color: "#3B6BCA" }} />
+        {/* Mold rec + Machine spec — compact combined card */}
+        <div className="rounded-xl px-3 py-2 space-y-1.5" style={{ border: `1px solid ${border}`, background: cardBg }}>
+          <div className="flex items-center gap-2">
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg" style={{ background: dm ? "#1E2A3D" : "#EEF2FC" }}>
+              <Package className="h-3 w-3" style={{ color: "#3B6BCA" }} />
             </div>
-            <span className="text-[11px] leading-relaxed" style={{ color: dm ? "#C0BEBC" : "#4A4A4E" }}>{getMoldRec(quantity)}</span>
+            <span className="text-[10px] leading-snug" style={{ color: dm ? "#C0BEBC" : "#4A4A4E" }}>{getMoldRec(quantity)}</span>
           </div>
-        </div>
-
-        {/* Machine spec chips */}
-        {machine && (
-          <div className="rounded-xl px-3 py-3" style={{ border: `1px solid ${border}`, background: cardBg }}>
-            <p className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: muted }}>Machine Spec</p>
-            <div className="grid grid-cols-3 gap-1.5">
+          {machine && (
+            <div className="grid grid-cols-3 gap-1">
               {[
-                { label: "Tonnage", value: `${machine.tonnage}T` },
-                { label: "Shot size", value: `${machine.shotSize} cm³` },
+                { label: "Tonnage",  value: `${machine.tonnage}T` },
+                { label: "Shot",     value: `${machine.shotSize} cm³` },
                 { label: "Screw ⌀", value: machine.screwDia },
               ].map(({ label, value }) => (
-                <div key={label} className="rounded-lg px-2 py-2 text-center" style={{ background: dm ? "#28282C" : "#F0EDE8" }}>
-                  <p className="text-xs font-black font-mono" style={{ color: ink }}>{value}</p>
-                  <p className="text-[8px] mt-0.5" style={{ color: muted }}>{label}</p>
+                <div key={label} className="rounded-lg px-2 py-1 text-center" style={{ background: dm ? "#28282C" : "#F0EDE8" }}>
+                  <p className="text-[11px] font-black font-mono" style={{ color: ink }}>{value}</p>
+                  <p className="text-[8px]" style={{ color: muted }}>{label}</p>
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
       </div>
     </div>

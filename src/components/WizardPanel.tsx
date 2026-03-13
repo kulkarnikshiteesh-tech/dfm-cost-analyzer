@@ -226,7 +226,7 @@ const WizardPanel = ({
       <div style={{ height: 3, background: "linear-gradient(90deg, #3B6BCA 0%, #5BB87E 50%, #E67E5B 100%)", flexShrink: 0 }} />
 
       {/* Content */}
-      <div className={`px-4 py-4 space-y-4 ${step === 3 ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto"}`} style={{ scrollbarWidth: "none" }}>
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" style={{ scrollbarWidth: "none" }}>
 
         {/* ── STEP 1 — Upload ── */}
         {step === 1 && (
@@ -409,29 +409,27 @@ const WizardPanel = ({
 
         {/* ── STEP 3 — Recommendation only ── */}
         {step === 3 && recommendation && (
-          <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid #3B6BCA40` }}>
-            <div className="px-4 py-3" style={{ background: dm ? "#1A2540" : "linear-gradient(135deg, #EEF2FC 0%, #F5F8FF 100%)" }}>
+          <div className="rounded-2xl" style={{ border: `1px solid #3B6BCA40`, overflow: "visible" }}>
+            <div className="px-4 py-3 rounded-2xl" style={{ background: dm ? "#1A2540" : "linear-gradient(135deg, #EEF2FC 0%, #F5F8FF 100%)" }}>
               <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: "#6A9FD8" }}>Recommended material</p>
               <p className="text-base font-black" style={{ color: ink }}>{recommendation.label}</p>
               <p className="text-[11px] leading-relaxed mt-1" style={{ color: dm ? "#AAA" : "#6A6A6E" }}>{recommendation.reason}</p>
-            </div>
-            <div className="px-4 py-2" style={{ borderTop: `1px solid #3B6BCA30`, background: dm ? "#141C30" : "#F8FAFF" }}>
-              <p className="text-[10px]" style={{ color: "#9A9AFF" }}>To override → use material selector on the right panel.</p>
+              <p className="text-[10px] mt-2" style={{ color: "#9A9AFF" }}>To override → material selector on the right panel.</p>
             </div>
           </div>
         )}
 
       </div>
 
-      {/* Footer */}
-      <div className="shrink-0 px-4 py-3 flex gap-2" style={{ borderTop: `1px solid ${border}`, background: panelBg }}>
-        {step === 2 && qStep === 1 && (
+      {/* Footer — only shown on step 2 q1 */}
+      {step === 2 && qStep === 1 && (
+        <div className="shrink-0 px-4 py-3 flex gap-2" style={{ borderTop: `1px solid ${border}`, background: panelBg }}>
           <button onClick={() => setStep(1)} className="flex items-center gap-1 rounded-xl px-3 py-2 text-[11px] font-bold transition-colors"
             style={{ border: `1px solid ${border}`, color: dm ? "#AAA" : "#6A6A6E", background: "transparent" }}>
             <ChevronLeft className="h-3.5 w-3.5" /> Back
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
     </div>
   );
