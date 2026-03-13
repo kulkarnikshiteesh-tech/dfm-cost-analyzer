@@ -111,17 +111,14 @@ function GLBModel({
 
         if (pullDirection) {
           const dotPull = faceNormal.dot(pullDirection);
-          if (dotPull > 0.087) {
-            r=1.0; g=0.85; b=0.0;   // yellow — undercut
-          } else if (dotPull < -0.087) {
-            r=1.0; g=0.85; b=0.0;   // yellow — undercut
+          if (Math.abs(dotPull) < 0.5) {
+            r=0.9; g=0.15; b=0.1;  // red — undercut
           } else {
-            r=0.36; g=0.56; b=0.9;  // blue — reachable
+            r=0.36; g=0.56; b=0.9; // blue — reachable
           }
         } else if (highlightNormal) {
-          // Face selection mode: highlight selected face group red
           if (faceNormal.dot(highlightNormal) > 0.97) {
-            r=0.9; g=0.15; b=0.1; // red
+            r=1.0; g=0.85; b=0.0; // yellow
           }
         }
 
