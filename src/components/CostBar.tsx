@@ -83,6 +83,7 @@ const CostBar = ({
 }: CostBarProps) => {
   const hasData = !!volumeCubicMm && !!boundingBox;
   const stepIndex = QTY_STEPS.reduce((best, val, i) => Math.abs(val - quantity) < Math.abs(QTY_STEPS[best] - quantity) ? i : best, 0);
+  const handleSlider = (e: React.ChangeEvent<HTMLInputElement>) => { onQuantityChange?.(QTY_STEPS[parseInt(e.target.value)]); };
   const severity = hasUndercuts ? (undercutSeverity ?? "low") : "low";
   const mold = hasData ? calcMoldCost(volumeCubicMm!, boundingBox!, quantity, severity) : null;
   const perPiece = hasData ? calcPerPiece(volumeCubicMm!, material, quantity) : null;

@@ -163,6 +163,7 @@ interface CADViewerProps {
   onAnalysisResult?: (result: AnalysisResult, faceNormal: { x: number; y: number; z: number }) => void;
   onFaceConfirmed?: () => void;
   onTryAnother?: () => void;
+  onStartOver?: () => void;
   analysisComplete?: boolean;
 }
 
@@ -174,6 +175,7 @@ const CADViewer = ({
   onAnalysisResult,
   onFaceConfirmed,
   onTryAnother,
+  onStartOver,
   analysisComplete = false,
 }: CADViewerProps) => {
   const [viewerGlbUrl, setViewerGlbUrl] = useState<string | null>(null);
@@ -373,6 +375,16 @@ const CADViewer = ({
             </button>
           </div>
         </div>
+      )}
+
+      {/* Start over button */}
+      {onStartOver && viewerGlbUrl && (
+        <button
+          onClick={onStartOver}
+          className="absolute bottom-4 left-4 z-10 flex items-center gap-1.5 rounded-lg border border-[#e0deda] bg-white/90 px-3 py-1.5 text-[10px] font-semibold text-[#9a9a9e] backdrop-blur-sm hover:text-[#6a6a6e] transition-colors"
+        >
+          ↺ Start over
+        </button>
       )}
 
       <Canvas camera={{ position: [3, 3, 3], fov: 45 }} style={{ background: "transparent" }}>
