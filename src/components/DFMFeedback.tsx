@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Info, Ruler } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, Ruler, RotateCcw } from "lucide-react";
 
 interface DFMFeedbackProps {
   volumeCubicMm?: number | null;
@@ -6,6 +6,7 @@ interface DFMFeedbackProps {
   hasUndercuts?: boolean | null;
   undercutSeverity?: string | null;
   undercutMessage?: string | null;
+  onStartOver?: () => void;
 }
 
 function getDFMIssues(vol: number, bb: { x: number; y: number; z: number }) {
@@ -48,7 +49,7 @@ const severityRowStyle: Record<string, { border: string; bg: string }> = {
   unknown:  { border: "#D0CDC8", bg: "#F8F7F4" },
 };
 
-const DFMFeedback = ({ volumeCubicMm, boundingBox, hasUndercuts, undercutSeverity, undercutMessage }: DFMFeedbackProps) => {
+const DFMFeedback = ({ volumeCubicMm, boundingBox, hasUndercuts, undercutSeverity, undercutMessage, onStartOver }: DFMFeedbackProps) => {
   const hasData = !!volumeCubicMm;
   const safeBB = boundingBox || { x: 0, y: 0, z: 0 };
   const issues = hasData ? getDFMIssues(volumeCubicMm!, safeBB) : [];
@@ -124,6 +125,16 @@ const DFMFeedback = ({ volumeCubicMm, boundingBox, hasUndercuts, undercutSeverit
               </p>
             </div>
           </div>
+
+          {/* Start over */}
+          {onStartOver && (
+            <button
+              onClick={onStartOver}
+              className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-[#e0deda] px-4 py-2.5 text-[11px] font-bold text-[#6a6a6e] hover:bg-[#f8f7f4] transition-colors"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Start over
+            </button>
+          )}
 
         </div>
       )}

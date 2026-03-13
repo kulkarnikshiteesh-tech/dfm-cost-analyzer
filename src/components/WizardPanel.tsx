@@ -445,7 +445,7 @@ const WizardPanel = ({
         {/* ── STEP 3 — Face selection ── */}
         {step === 3 && (
           <div className="space-y-3">
-            {/* Recommendation card */}
+            {/* Recommendation card — only thing shown */}
             {recommendation && (
               <div className="rounded-2xl overflow-hidden" style={{ border: "0.5px solid #c8ddf8" }}>
                 <div className="px-4 py-3" style={{ background: "linear-gradient(135deg, #EEF2FC 0%, #F5F8FF 100%)" }}>
@@ -458,44 +458,16 @@ const WizardPanel = ({
                 </div>
               </div>
             )}
-
-            {/* Instruction */}
-            {!faceConfirmed && (
-              <div className="rounded-2xl border px-4 py-3 space-y-1.5" style={{ borderColor: "#E0A02060", background: "#FFFBF0" }}>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-[#c08010]">Select Top / Bottom face</p>
-                <p className="text-[11px] text-[#6a6a6e] leading-relaxed">
-                  Click any face on your model in the 3D viewer. The face with the <strong>lowest undercut %</strong> is your best mould direction.
-                </p>
-              </div>
-            )}
-
-            {/* Confirmed */}
-            {faceConfirmed && (
-              <div className="space-y-2.5">
-                <div className="flex items-center gap-2 rounded-xl border border-[#c8ecd0] bg-[#f0faf4] px-3 py-2.5">
-                  <span className="text-[#5BB87E] text-base">✓</span>
-                  <span className="text-[11px] font-bold text-[#5BB87E]">Top / Bottom face confirmed</span>
-                </div>
-                <p className="text-[10px] text-[#9a9a9e] leading-relaxed px-1">
-                  Cost estimates are live on the right panel. Adjust quantity or material to see how costs change.
-                </p>
-              </div>
-            )}
           </div>
         )}
 
       </div>
 
-      {/* Footer */}
+      {/* Footer — only Back on step 2 q1 */}
       <div className="shrink-0 border-t border-[#e0deda] bg-white px-4 py-3 flex gap-2">
         {step === 2 && qStep === 1 && (
           <button onClick={() => setStep(1)} className="flex items-center gap-1 rounded-xl border border-[#e0deda] px-3 py-2 text-[11px] font-bold text-[#6a6a6e] hover:bg-[#f8f7f4] transition-colors">
             <ChevronLeft className="h-3.5 w-3.5" /> Back
-          </button>
-        )}
-        {faceConfirmed && (
-          <button onClick={handleReset} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#e0deda] px-4 py-2 text-[11px] font-bold text-[#6a6a6e] hover:bg-[#f8f7f4] transition-colors">
-            <RotateCcw className="h-3.5 w-3.5" /> Start over
           </button>
         )}
       </div>

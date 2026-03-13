@@ -383,7 +383,7 @@ const CADViewer = ({
           onClick={onStartOver}
           className="absolute bottom-4 left-4 z-10 flex items-center gap-1.5 rounded-lg border border-[#e0deda] bg-white/90 px-3 py-1.5 text-[10px] font-semibold text-[#9a9a9e] backdrop-blur-sm hover:text-[#6a6a6e] transition-colors"
         >
-          ↺ Start over
+          ↺ Upload new model
         </button>
       )}
 
