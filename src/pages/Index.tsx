@@ -102,7 +102,7 @@ const Index = () => {
       <div className="flex min-h-0 flex-1">
 
         {/* LEFT — wizard + DFM */}
-        <aside className="flex w-[280px] shrink-0 flex-col border-r border-[#e0deda] bg-white overflow-hidden">
+        <aside className="flex w-[308px] shrink-0 flex-col border-r border-[#e0deda] bg-white overflow-hidden">
           <WizardPanel
             onUploadSuccess={handleUploadSuccess}
             onAnalysisComplete={(data) => setAnalysisData(data)}
@@ -124,6 +124,7 @@ const Index = () => {
                 hasUndercuts={analysisData.has_undercuts}
                 undercutSeverity={analysisData.undercut_severity}
                 undercutMessage={analysisData.undercut_message}
+                onStartOver={handleStartOver}
               />
             </div>
           )}
@@ -144,7 +145,7 @@ const Index = () => {
         </main>
 
         {/* RIGHT — costing */}
-        <aside className="flex w-[280px] shrink-0 flex-col border-l border-[#e0deda] bg-white overflow-hidden">
+        <aside className="flex w-[308px] shrink-0 flex-col border-l border-[#e0deda] bg-white overflow-hidden">
           <CostBar
             volumeCubicMm={analysisData?.volume_cubic_mm}
             boundingBox={analysisData?.bounding_box_mm ?? null}
