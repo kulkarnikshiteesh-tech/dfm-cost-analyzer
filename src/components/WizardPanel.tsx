@@ -206,42 +206,14 @@ const WizardPanel = ({
 
   const bb = uploadedData?.bounding_box_mm;
 
-  // Step accent colors
-  const accentColors = ["#3B6BCA", "#E67E5B", "#5BB87E"];
-  const accentColor = accentColors[step - 1];
-
   return (
     <div className="flex h-full flex-col overflow-hidden">
 
       {/* Gradient accent bar */}
       <div style={{ height: 3, background: "linear-gradient(90deg, #3B6BCA 0%, #5BB87E 50%, #E67E5B 100%)", flexShrink: 0 }} />
 
-      {/* Step indicators */}
-      <div className="flex shrink-0 items-center border-b border-[#e0deda] px-3 py-2.5 gap-1">
-        {[1, 2, 3].map((n) => {
-          const done = step > n;
-          const active = step === n;
-          const labels = ["Upload", "Configure", "Direction"];
-          return (
-            <div key={n} className="flex items-center gap-1">
-              {n > 1 && <div className="h-px w-4 bg-[#e0deda]" />}
-              <div className="flex items-center gap-1.5">
-                <div className={`flex h-[18px] w-[18px] items-center justify-center rounded-full text-[9px] font-black transition-all ${
-                  done ? "bg-[#5BB87E] text-white" : active ? "text-white" : "bg-[#f0ede8] text-[#b0ada8]"
-                }`} style={active ? { background: accentColor } : {}}>
-                  {done ? "✓" : n}
-                </div>
-                <span className={`text-[9px] font-bold uppercase tracking-widest ${
-                  active ? "text-[#1a1a1c]" : done ? "text-[#5BB87E]" : "text-[#b0ada8]"
-                }`}>{labels[n - 1]}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" style={{ scrollbarWidth: "none" }}>
+      {/* Content — scrollable for steps 1+2, static for step 3 */}
+      <div className={`px-4 py-4 space-y-4 ${step === 3 ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto"}`} style={{ scrollbarWidth: "none" }}>
 
         {/* ── STEP 1 — Upload ── */}
         {step === 1 && (

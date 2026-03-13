@@ -109,7 +109,7 @@ const CostBar = ({
       {/* Blue accent bar */}
       <div style={{ height: 3, background: "#3B6BCA", flexShrink: 0 }} />
 
-      <div className="flex flex-col gap-4 px-4 py-4">
+      <div className="flex flex-col gap-3 px-4 py-3">
         {/* Panel label */}
         <div className="flex items-center justify-between">
           <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Costing</p>
@@ -117,30 +117,30 @@ const CostBar = ({
         </div>
 
         {/* ── Dark hero card ── */}
-        <div className="rounded-2xl px-4 py-4 relative overflow-hidden" style={{ background: "#1A1A1C" }}>
+        <div className="rounded-2xl px-4 py-3 relative overflow-hidden" style={{ background: "#1A1A1C" }}>
           <div className="absolute right-[-24px] bottom-[-24px] w-28 h-28 rounded-full" style={{ background: "rgba(91,142,230,0.12)" }} />
-          <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: "#555", letterSpacing: "0.14em" }}>Total per unit</p>
-          <p className="font-black tabular-nums leading-none mb-1" style={{ fontSize: 34, color: "#fff", letterSpacing: "-0.02em" }}>
+          <p className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: "#888", letterSpacing: "0.14em" }}>Total per unit</p>
+          <p className="font-black tabular-nums leading-none mb-0.5" style={{ fontSize: 30, color: "#fff", letterSpacing: "-0.02em" }}>
             ₹{totalPerUnit!.toLocaleString("en-IN")}
           </p>
-          <p className="text-[10px] mb-4" style={{ color: "#555" }}>
-            Incl. mold amortised over {quantity.toLocaleString("en-IN")} units
+          <p className="text-[10px] mb-3" style={{ color: "#888" }}>
+            Mold amortised over {quantity.toLocaleString("en-IN")} units
           </p>
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-xl px-3 py-2.5" style={{ background: "rgba(255,255,255,0.06)" }}>
-              <p className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "#555" }}>Mold cost</p>
+            <div className="rounded-xl px-3 py-2" style={{ background: "rgba(255,255,255,0.07)" }}>
+              <p className="text-[8px] uppercase tracking-widest mb-0.5" style={{ color: "#999" }}>Mold cost</p>
               <p className="text-sm font-black tabular-nums" style={{ color: "#fff" }}>₹{mold!.total.toLocaleString("en-IN")}</p>
-              <p className="text-[9px] mt-0.5" style={{ color: "#444" }}>{mold!.label}</p>
+              <p className="text-[9px] mt-0.5" style={{ color: "#777" }}>{mold!.label}</p>
               {mold!.surcharge > 0 && (
                 <div className="inline-flex items-center mt-1.5 rounded px-1.5 py-0.5" style={{ background: "rgba(224,160,32,0.18)" }}>
                   <span className="text-[9px] font-bold" style={{ color: "#E0A020" }}>⚠ +{Math.round(mold!.surchargeRate * 100)}% tooling</span>
                 </div>
               )}
             </div>
-            <div className="rounded-xl px-3 py-2.5" style={{ background: "rgba(255,255,255,0.06)" }}>
-              <p className="text-[8px] uppercase tracking-widest mb-1" style={{ color: "#555" }}>Per piece</p>
+            <div className="rounded-xl px-3 py-2" style={{ background: "rgba(255,255,255,0.07)" }}>
+              <p className="text-[8px] uppercase tracking-widest mb-0.5" style={{ color: "#999" }}>Per piece</p>
               <p className="text-sm font-black tabular-nums" style={{ color: "#fff" }}>₹{perPiece!.toLocaleString("en-IN")}</p>
-              <p className="text-[9px] mt-0.5" style={{ color: "#444" }}>Excl. mold</p>
+              <p className="text-[9px] mt-0.5" style={{ color: "#777" }}>Excl. mold</p>
             </div>
           </div>
         </div>
