@@ -74,12 +74,13 @@ interface CostBarProps {
   onQuantityChange?: (q: number) => void;
   onOpenReport?: () => void;
   recommendedMaterial?: string | null;
+  darkMode?: boolean;
 }
 
 const CostBar = ({
   volumeCubicMm, boundingBox, material = "ABS", quantity = 1000,
   hasUndercuts, undercutSeverity, onMaterialChange, onQuantityChange,
-  onOpenReport, recommendedMaterial,
+  onOpenReport, recommendedMaterial, darkMode: dm = false,
 }: CostBarProps) => {
   const hasData = !!volumeCubicMm && !!boundingBox;
   const stepIndex = QTY_STEPS.reduce((best, val, i) => Math.abs(val - quantity) < Math.abs(QTY_STEPS[best] - quantity) ? i : best, 0);
@@ -90,80 +91,95 @@ const CostBar = ({
   const totalPerUnit = mold && perPiece ? Math.round((mold.total + perPiece * quantity) / quantity) : null;
   const machine = hasData ? getMachineSpec(volumeCubicMm!, boundingBox!) : null;
 
+  // Theme tokens
+  const panelBg  = dm ? "#18181B" : "#FFFFFF";
+  const cardBg   = dm ? "#222226" : "#F8F7F4";
+  const border   = dm ? "#2A2A2E" : "#E0DEDA";
+  const ink      = dm ? "#F0EFE8" : "#1A1A1C";
+  const muted    = dm ? "#999"    : "#9A9A9E";
+  const faint    = dm ? "#555"    : "#B0ADA8";
+  const inputBg  = dm ? "#28282C" : "#F5F4F0";
+  const selectBg = dm ? "#28282C" : "#F5F4F0";
+
   if (!hasData) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center px-5 py-8 text-center">
-        <div className="w-full rounded-2xl border border-[#e0deda] bg-[#f8f7f4] px-5 py-8 space-y-3">
-          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef2fc]">
-            <span className="text-lg text-[#3b6bca]">₹</span>
+      <div className="flex flex-1 flex-col items-center justify-center px-5 py-8 text-center" style={{ background: panelBg }}>
+        <div className="w-full rounded-2xl px-5 py-8 space-y-3" style={{ border: `1px solid ${border}`, background: cardBg }}>
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: dm ? "#1E2A3D" : "#EEF2FC" }}>
+            <span className="text-lg" style={{ color: "#3B6BCA" }}>₹</span>
           </div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#b0ada8]">Costing</p>
-          <p className="text-[11px] text-[#9a9a9e] leading-relaxed">Upload a model and confirm a top / bottom face to see cost estimates</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: faint }}>Costing</p>
+          <p className="text-[11px] leading-relaxed" style={{ color: muted }}>Upload a model and confirm a top / bottom face to see cost estimates</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+    <div className="flex flex-col h-full overflow-y-auto" style={{ background: panelBg, scrollbarWidth: "none" }}>
       {/* Blue accent bar */}
       <div style={{ height: 3, background: "#3B6BCA", flexShrink: 0 }} />
 
       <div className="flex flex-col gap-3 px-4 py-3">
         {/* Panel label */}
         <div className="flex items-center justify-between">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Costing</p>
+          <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: muted }}>Costing</p>
           <CostInfoModal />
         </div>
 
-        {/* ── Dark hero card ── */}
-        <div className="rounded-2xl px-4 py-3 relative overflow-hidden" style={{ background: "#1A1A1C" }}>
-          <div className="absolute right-[-24px] bottom-[-24px] w-28 h-28 rounded-full" style={{ background: "rgba(91,142,230,0.12)" }} />
-          <p className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: "#888", letterSpacing: "0.14em" }}>Total per unit</p>
-          <p className="font-black tabular-nums leading-none mb-0.5" style={{ fontSize: 30, color: "#fff", letterSpacing: "-0.02em" }}>
+        {/* ── Hero card — always dark, better contrast ── */}
+        <div className="rounded-2xl px-4 py-3 relative overflow-hidden" style={{ background: "#111114" }}>
+          <div className="absolute right-[-24px] bottom-[-24px] w-28 h-28 rounded-full" style={{ background: "rgba(91,142,230,0.15)" }} />
+          {/* Label */}
+          <p className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: "#AAA", letterSpacing: "0.14em" }}>Total per unit</p>
+          {/* Big number */}
+          <p className="font-black tabular-nums leading-none mb-0.5" style={{ fontSize: 30, color: "#FFFFFF", letterSpacing: "-0.02em" }}>
             ₹{totalPerUnit!.toLocaleString("en-IN")}
           </p>
-          <p className="text-[10px] mb-3" style={{ color: "#888" }}>
-            Mold amortised over {quantity.toLocaleString("en-IN")} units
+          {/* Subtitle */}
+          <p className="text-[10px] mb-3" style={{ color: "#AAA" }}>
+            Mold amortised · {quantity.toLocaleString("en-IN")} units
           </p>
+          {/* Sub-tiles — visible background */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-xl px-3 py-2" style={{ background: "rgba(255,255,255,0.07)" }}>
-              <p className="text-[8px] uppercase tracking-widest mb-0.5" style={{ color: "#999" }}>Mold cost</p>
-              <p className="text-sm font-black tabular-nums" style={{ color: "#fff" }}>₹{mold!.total.toLocaleString("en-IN")}</p>
-              <p className="text-[9px] mt-0.5" style={{ color: "#777" }}>{mold!.label}</p>
+            <div className="rounded-xl px-3 py-2" style={{ background: "#2A2A30" }}>
+              <p className="text-[8px] uppercase tracking-widest mb-0.5" style={{ color: "#AAA" }}>Mold cost</p>
+              <p className="text-sm font-black tabular-nums" style={{ color: "#FFF" }}>₹{mold!.total.toLocaleString("en-IN")}</p>
+              <p className="text-[9px] mt-0.5" style={{ color: "#888" }}>{mold!.label}</p>
               {mold!.surcharge > 0 && (
-                <div className="inline-flex items-center mt-1.5 rounded px-1.5 py-0.5" style={{ background: "rgba(224,160,32,0.18)" }}>
+                <div className="inline-flex items-center mt-1.5 rounded px-1.5 py-0.5" style={{ background: "rgba(224,160,32,0.2)" }}>
                   <span className="text-[9px] font-bold" style={{ color: "#E0A020" }}>⚠ +{Math.round(mold!.surchargeRate * 100)}% tooling</span>
                 </div>
               )}
             </div>
-            <div className="rounded-xl px-3 py-2" style={{ background: "rgba(255,255,255,0.07)" }}>
-              <p className="text-[8px] uppercase tracking-widest mb-0.5" style={{ color: "#999" }}>Per piece</p>
-              <p className="text-sm font-black tabular-nums" style={{ color: "#fff" }}>₹{perPiece!.toLocaleString("en-IN")}</p>
-              <p className="text-[9px] mt-0.5" style={{ color: "#777" }}>Excl. mold</p>
+            <div className="rounded-xl px-3 py-2" style={{ background: "#2A2A30" }}>
+              <p className="text-[8px] uppercase tracking-widest mb-0.5" style={{ color: "#AAA" }}>Per piece</p>
+              <p className="text-sm font-black tabular-nums" style={{ color: "#FFF" }}>₹{perPiece!.toLocaleString("en-IN")}</p>
+              <p className="text-[9px] mt-0.5" style={{ color: "#888" }}>Excl. mold</p>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-[#e0deda]" />
+        <div style={{ height: 1, background: border }} />
 
         {/* Material selector */}
         <div className="space-y-2">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Material</p>
+          <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: muted }}>Material</p>
           <select
             value={material}
             onChange={(e) => onMaterialChange?.(e.target.value)}
-            className="w-full rounded-xl border border-[#e0deda] bg-[#f5f4f0] px-3 py-2.5 text-xs font-semibold text-[#1a1a1c] focus:outline-none focus:border-[#3b6bca] transition-colors"
+            className="w-full rounded-xl px-3 py-2.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#3b6bca] transition-colors"
+            style={{ border: `1px solid ${border}`, background: selectBg, color: ink }}
           >
             {Object.entries(MATERIALS).map(([key, val]) => (
               <option key={key} value={key}>{val.label}</option>
             ))}
           </select>
           {recommendedMaterial && material !== recommendedMaterial && (
-            <div className="rounded-xl border border-[#fcd34d] bg-[#fffbf0] px-3 py-2.5">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-[#c08010] mb-1">⚠ Not recommended</p>
-              <p className="text-[10px] text-[#6a6a6e] leading-relaxed">
-                Wizard recommended <span className="font-semibold text-[#3b6bca]">{MATERIALS[recommendedMaterial as keyof typeof MATERIALS]?.label}</span> for your part.
+            <div className="rounded-xl px-3 py-2.5" style={{ border: "1px solid #C08010", background: dm ? "#2A2200" : "#FFFBF0" }}>
+              <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: "#C08010" }}>⚠ Not recommended</p>
+              <p className="text-[10px] leading-relaxed" style={{ color: dm ? "#BBA060" : "#6A6A6E" }}>
+                Wizard recommended <span className="font-semibold" style={{ color: "#3B6BCA" }}>{MATERIALS[recommendedMaterial as keyof typeof MATERIALS]?.label}</span> for your part.
               </p>
             </div>
           )}
@@ -172,67 +188,69 @@ const CostBar = ({
         {/* Quantity slider */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Quantity</p>
-            <p className="text-base font-black tabular-nums text-[#1a1a1c]">
-              {quantity.toLocaleString("en-IN")} <span className="text-[9px] font-normal text-[#b0ada8]">units</span>
+            <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: muted }}>Quantity</p>
+            <p className="text-base font-black tabular-nums" style={{ color: ink }}>
+              {quantity.toLocaleString("en-IN")} <span className="text-[9px] font-normal" style={{ color: faint }}>units</span>
             </p>
           </div>
           <input
             type="range" min={0} max={QTY_STEPS.length - 1} step={1} value={stepIndex}
             onChange={handleSlider}
             className="w-full cursor-pointer appearance-none rounded-full accent-[#3b6bca]"
-            style={{ height: 4, background: "#e0deda" }}
+            style={{ height: 4, background: border }}
           />
-          <div className="flex justify-between text-[8px] text-[#b0ada8]">
+          <div className="flex justify-between text-[8px]" style={{ color: faint }}>
             {QTY_STEPS.map((q) => (
-              <span key={q} className={quantity === q ? "text-[#3b6bca] font-bold" : ""}>
+              <span key={q} style={quantity === q ? { color: "#3B6BCA", fontWeight: 700 } : {}}>
                 {q >= 1000 ? `${q / 1000}k` : q}
               </span>
             ))}
           </div>
         </div>
 
-        <div className="border-t border-[#e0deda]" />
+        <div style={{ height: 1, background: border }} />
 
         {/* Report button */}
         {onOpenReport && (
-          <button onClick={onOpenReport} className="w-full rounded-xl border border-[#3b6bca] bg-[#eef2fc] px-4 py-3 text-left transition-all hover:bg-[#dce8fa] group">
+          <button onClick={onOpenReport}
+            className="w-full rounded-xl px-4 py-3 text-left transition-all group"
+            style={{ border: "1px solid #3B6BCA", background: dm ? "#1A2540" : "#EEF2FC" }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-bold text-[#3b6bca]">Read full cost report</p>
-                <p className="text-[10px] mt-0.5" style={{ color: "#9a9aff" }}>Mold · per piece · material · all tiers</p>
+                <p className="text-[11px] font-bold" style={{ color: "#3B6BCA" }}>Read full cost report</p>
+                <p className="text-[10px] mt-0.5" style={{ color: "#9A9AFF" }}>Mold · per piece · material · all tiers</p>
               </div>
-              <ArrowRight className="h-4 w-4 text-[#3b6bca] group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" style={{ color: "#3B6BCA" }} />
             </div>
           </button>
         )}
 
-        <div className="border-t border-[#e0deda]" />
+        <div style={{ height: 1, background: border }} />
 
         {/* Mold rec */}
-        <div className="rounded-xl border border-[#e0deda] bg-[#f8f7f4] px-3 py-3">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e] mb-2">Recommended Mold</p>
+        <div className="rounded-xl px-3 py-3" style={{ border: `1px solid ${border}`, background: cardBg }}>
+          <p className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: muted }}>Recommended Mold</p>
           <div className="flex items-start gap-2.5">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#eef2fc]">
-              <Package className="h-3.5 w-3.5 text-[#3b6bca]" />
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: dm ? "#1E2A3D" : "#EEF2FC" }}>
+              <Package className="h-3.5 w-3.5" style={{ color: "#3B6BCA" }} />
             </div>
-            <span className="text-[11px] text-[#4a4a4e] leading-relaxed">{getMoldRec(quantity)}</span>
+            <span className="text-[11px] leading-relaxed" style={{ color: dm ? "#C0BEBC" : "#4A4A4E" }}>{getMoldRec(quantity)}</span>
           </div>
         </div>
 
-        {/* Machine spec — 3 chips */}
+        {/* Machine spec chips */}
         {machine && (
-          <div className="rounded-xl border border-[#e0deda] bg-[#f8f7f4] px-3 py-3">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e] mb-2">Machine Spec</p>
+          <div className="rounded-xl px-3 py-3" style={{ border: `1px solid ${border}`, background: cardBg }}>
+            <p className="text-[9px] font-bold uppercase tracking-widest mb-2" style={{ color: muted }}>Machine Spec</p>
             <div className="grid grid-cols-3 gap-1.5">
               {[
                 { label: "Tonnage", value: `${machine.tonnage}T` },
                 { label: "Shot size", value: `${machine.shotSize} cm³` },
                 { label: "Screw ⌀", value: machine.screwDia },
               ].map(({ label, value }) => (
-                <div key={label} className="rounded-lg bg-[#f0ede8] px-2 py-2 text-center">
-                  <p className="text-xs font-black font-mono text-[#1a1a1c]">{value}</p>
-                  <p className="text-[8px] text-[#9a9a9e] mt-0.5">{label}</p>
+                <div key={label} className="rounded-lg px-2 py-2 text-center" style={{ background: dm ? "#28282C" : "#F0EDE8" }}>
+                  <p className="text-xs font-black font-mono" style={{ color: ink }}>{value}</p>
+                  <p className="text-[8px] mt-0.5" style={{ color: muted }}>{label}</p>
                 </div>
               ))}
             </div>

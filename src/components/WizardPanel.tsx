@@ -65,35 +65,38 @@ function recommendMaterial(answers: Answers): { id: string; label: string; reaso
 const QTY_STEPS = [100, 250, 500, 1000, 2000, 5000, 10000, 25000, 50000];
 
 // ── Small chip for Q cards ────────────────────────────────────────────────────
-function QChip({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
+function QChip({ label, selected, onClick, dm = false, border = "#E0DEDA" }: {
+  label: string; selected: boolean; onClick: () => void; dm?: boolean; border?: string;
+}) {
   return (
-    <button
-      onClick={onClick}
-      className={`rounded-full border px-3 py-1.5 text-[11px] font-medium transition-all ${
-        selected ? "border-[#3b6bca] bg-[#eef2fc] text-[#3b6bca] font-semibold" : "border-[#e0deda] bg-[#f8f7f4] text-[#6a6a6e] hover:border-[#3b6bca]/50"
-      }`}
-    >
+    <button onClick={onClick} className="rounded-full px-3 py-1.5 text-[11px] font-medium transition-all"
+      style={{
+        border: `1px solid ${selected ? "#3B6BCA" : border}`,
+        background: selected ? (dm ? "#1A2540" : "#EEF2FC") : (dm ? "#28282C" : "#F8F7F4"),
+        color: selected ? "#3B6BCA" : (dm ? "#AAA" : "#6A6A6E"),
+        fontWeight: selected ? 600 : 400,
+      }}>
       {label}
     </button>
   );
 }
 
 // ── Option button (single select) ─────────────────────────────────────────────
-function Option({ label, sub, selected, onClick }: { label: string; sub?: string; selected: boolean; onClick: () => void }) {
+function Option({ label, sub, selected, onClick, dm = false, border = "#E0DEDA", cardBg = "#F8F7F4", ink = "#1A1A1C", muted = "#9A9A9E" }: {
+  label: string; sub?: string; selected: boolean; onClick: () => void;
+  dm?: boolean; border?: string; cardBg?: string; ink?: string; muted?: string;
+}) {
   return (
-    <button
-      onClick={onClick}
-      className={`w-full rounded-xl border px-3 py-2.5 text-left transition-all ${
-        selected ? "border-[#3b6bca] bg-[#eef2fc]" : "border-[#e0deda] bg-[#f8f7f4] hover:border-[#3b6bca]/40"
-      }`}
-    >
+    <button onClick={onClick} className="w-full rounded-xl px-3 py-2.5 text-left transition-all"
+      style={{ border: `1px solid ${selected ? "#3B6BCA" : border}`, background: selected ? (dm ? "#1A2540" : "#EEF2FC") : cardBg }}>
       <div className="flex items-center gap-2">
-        <div className={`h-3 w-3 shrink-0 rounded-full border-2 flex items-center justify-center ${selected ? "border-[#3b6bca]" : "border-[#c0bdb8]"}`}>
-          {selected && <div className="h-1.5 w-1.5 rounded-full bg-[#3b6bca]" />}
+        <div className="h-3 w-3 shrink-0 rounded-full border-2 flex items-center justify-center"
+          style={{ borderColor: selected ? "#3B6BCA" : (dm ? "#555" : "#C0BDB8") }}>
+          {selected && <div className="h-1.5 w-1.5 rounded-full" style={{ background: "#3B6BCA" }} />}
         </div>
         <div>
-          <p className={`text-xs font-semibold ${selected ? "text-[#3b6bca]" : "text-[#1a1a1c]"}`}>{label}</p>
-          {sub && <p className="mt-0.5 text-[10px] text-[#9a9a9e] leading-snug">{sub}</p>}
+          <p className="text-xs font-semibold" style={{ color: selected ? "#3B6BCA" : ink }}>{label}</p>
+          {sub && <p className="mt-0.5 text-[10px] leading-snug" style={{ color: muted }}>{sub}</p>}
         </div>
       </div>
     </button>
@@ -126,14 +129,16 @@ interface WizardPanelProps {
   material: string;
   faceConfirmed: boolean;
   analysisData?: any;
+  darkMode?: boolean;
 }
 
 type Step = 1 | 2 | 3;
-type QStep = 1 | 2 | 3 | 4; // sub-steps inside step 2: Q1, Q2, Q3, Quantity
+type QStep = 1 | 2 | 3 | 4;
 
 const WizardPanel = ({
   onUploadSuccess, onMaterialChange, onQuantityChange, onRequestFaceSelection,
   onRecommendationChange, uploadedData, quantity, faceConfirmed, analysisData,
+  darkMode: dm = false,
 }: WizardPanelProps) => {
   const [step, setStep] = useState<Step>(1);
   const [qStep, setQStep] = useState<QStep>(1);
@@ -206,53 +211,60 @@ const WizardPanel = ({
 
   const bb = uploadedData?.bounding_box_mm;
 
+  // Theme tokens
+  const panelBg = dm ? "#18181B" : "#FFFFFF";
+  const cardBg  = dm ? "#222226" : "#F8F7F4";
+  const border  = dm ? "#2A2A2E" : "#E0DEDA";
+  const ink     = dm ? "#F0EFE8" : "#1A1A1C";
+  const muted   = dm ? "#999"    : "#9A9A9E";
+  const faint   = dm ? "#555"    : "#B0ADA8";
+
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden" style={{ background: panelBg }}>
 
       {/* Gradient accent bar */}
       <div style={{ height: 3, background: "linear-gradient(90deg, #3B6BCA 0%, #5BB87E 50%, #E67E5B 100%)", flexShrink: 0 }} />
 
-      {/* Content — scrollable for steps 1+2, static for step 3 */}
+      {/* Content */}
       <div className={`px-4 py-4 space-y-4 ${step === 3 ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto"}`} style={{ scrollbarWidth: "none" }}>
 
         {/* ── STEP 1 — Upload ── */}
         {step === 1 && (
           <div className="space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#9a9a9e]">Upload Geometry</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: muted }}>Upload Geometry</p>
             <label
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
-              className={`relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 transition-all ${
-                isDragging ? "border-[#3b6bca] bg-[#eef2fc] scale-[1.02]" : "border-[#d8d5d0] bg-[#f8f7f4] hover:border-[#3b6bca]/50"
-              } ${isUploading ? "pointer-events-none opacity-60" : ""}`}
+              className={`relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 transition-all ${isUploading ? "pointer-events-none opacity-60" : ""}`}
+              style={{ borderColor: isDragging ? "#3B6BCA" : border, background: isDragging ? (dm ? "#1A2540" : "#EEF2FC") : cardBg }}
             >
               <input type="file" accept=".step,.stp" onChange={handleFileSelect} className="sr-only" disabled={isUploading} />
               {isUploading ? (
                 <>
-                  <Loader2 className="mb-2 h-7 w-7 animate-spin text-[#3b6bca]" />
-                  <span className="text-sm font-bold text-[#3b6bca]">Analysing geometry…</span>
-                  <span className="mt-1 text-[10px] text-[#9a9a9e]">This may take a moment</span>
+                  <Loader2 className="mb-2 h-7 w-7 animate-spin" style={{ color: "#3B6BCA" }} />
+                  <span className="text-sm font-bold" style={{ color: "#3B6BCA" }}>Analysing geometry…</span>
+                  <span className="mt-1 text-[10px]" style={{ color: muted }}>This may take a moment</span>
                 </>
               ) : (
                 <>
-                  <div className="mb-3 rounded-xl bg-white p-3 shadow-sm border border-[#e8e5e0]">
-                    <Upload className="h-5 w-5 text-[#3b6bca]" />
+                  <div className="mb-3 rounded-xl p-3 shadow-sm" style={{ background: panelBg, border: `1px solid ${border}` }}>
+                    <Upload className="h-5 w-5" style={{ color: "#3B6BCA" }} />
                   </div>
-                  <span className="text-sm font-bold text-[#1a1a1c]">Drop .step here</span>
-                  <span className="mt-0.5 text-[10px] uppercase tracking-wider text-[#9a9a9e]">or click to browse</span>
+                  <span className="text-sm font-bold" style={{ color: ink }}>Drop .step here</span>
+                  <span className="mt-0.5 text-[10px] uppercase tracking-wider" style={{ color: muted }}>or click to browse</span>
                 </>
               )}
             </label>
             {file && !isUploading && (
-              <div className="flex items-center gap-3 rounded-xl border border-[#c8ddf8] bg-[#eef2fc] px-3 py-2.5">
-                <FileBox className="h-4 w-4 text-[#3b6bca] shrink-0" />
-                <span className="flex-1 truncate text-xs font-bold font-mono text-[#1a1a1c]">{file.name}</span>
-                <button onClick={() => setFile(null)}><X className="h-3.5 w-3.5 text-[#9a9a9e]" /></button>
+              <div className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ border: "1px solid #3B6BCA50", background: dm ? "#1A2540" : "#EEF2FC" }}>
+                <FileBox className="h-4 w-4 shrink-0" style={{ color: "#3B6BCA" }} />
+                <span className="flex-1 truncate text-xs font-bold font-mono" style={{ color: ink }}>{file.name}</span>
+                <button onClick={() => setFile(null)}><X className="h-3.5 w-3.5" style={{ color: muted }} /></button>
               </div>
             )}
-            <div className="rounded-xl border border-[#e0deda] bg-[#f8f7f4] px-3 py-2.5">
-              <p className="text-[11px] text-[#6a6a6e]">.STEP / .STP only · Single part · No assemblies</p>
+            <div className="rounded-xl px-3 py-2.5" style={{ border: `1px solid ${border}`, background: cardBg }}>
+              <p className="text-[11px]" style={{ color: dm ? "#AAA" : "#6A6A6E" }}>.STEP / .STP only · Single part · No assemblies</p>
             </div>
           </div>
         )}
@@ -260,22 +272,21 @@ const WizardPanel = ({
         {/* ── STEP 2 — Configure (card-by-card) ── */}
         {step === 2 && (
           <div className="space-y-4">
-            {/* Dimensions pill */}
             {bb && (
-              <div className="rounded-xl border border-[#c8ddf8] bg-[#eef2fc] px-3 py-2.5">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-[#6a9fd8] mb-1">Model dimensions</p>
-                <p className="text-xs font-black font-mono text-[#1a1a1c]">{bb.x.toFixed(1)} × {bb.y.toFixed(1)} × {bb.z.toFixed(1)} mm</p>
+              <div className="rounded-xl px-3 py-2.5" style={{ border: `1px solid #3B6BCA40`, background: dm ? "#1A2540" : "#EEF2FC" }}>
+                <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: "#6A9FD8" }}>Model dimensions</p>
+                <p className="text-xs font-black font-mono" style={{ color: ink }}>{bb.x.toFixed(1)} × {bb.y.toFixed(1)} × {bb.z.toFixed(1)} mm</p>
               </div>
             )}
 
-            {/* Q1 — What is your part? */}
+            {/* Q1 */}
             {qStep === 1 && (
-              <div className="rounded-2xl border border-[#e0deda] bg-white overflow-hidden">
-                <div className="px-4 pt-4 pb-3 border-b border-[#f0ede8]">
+              <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${border}`, background: panelBg }}>
+                <div className="px-4 pt-4 pb-3" style={{ borderBottom: `1px solid ${border}` }}>
                   <QProgress step={1} total={4} />
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-[#3b6bca] mb-1.5">Question 1 of 3</p>
-                  <p className="text-sm font-bold text-[#1a1a1c]">What is your part?</p>
-                  <p className="text-[10px] text-[#9a9a9e] mt-0.5">Pick the one that fits best</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "#3B6BCA" }}>Question 1 of 3</p>
+                  <p className="text-sm font-bold" style={{ color: ink }}>What is your part?</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: muted }}>Pick the one that fits best</p>
                 </div>
                 <div className="px-4 py-3 space-y-2">
                   {[
@@ -284,85 +295,71 @@ const WizardPanel = ({
                     { val: "flexible",   label: "Flexible or spring-like",    sub: "A clip, snap-fit, or hinge that bends and springs back" },
                     { val: "grip",       label: "Grip or soft-touch surface", sub: "A handle, button, or surface someone holds" },
                   ].map(({ val, label, sub }) => (
-                    <Option key={val} label={label} sub={sub} selected={answers.partType === val} onClick={() => setAnswers(a => ({ ...a, partType: val }))} />
+                    <Option key={val} label={label} sub={sub} selected={answers.partType === val} onClick={() => setAnswers(a => ({ ...a, partType: val }))} dm={dm} border={border} cardBg={cardBg} ink={ink} muted={muted} />
                   ))}
                 </div>
                 <div className="flex justify-end px-4 pb-4">
-                  <button
-                    onClick={() => setQStep(2)}
-                    disabled={!canAdvanceQ1}
-                    className={`flex items-center gap-1 rounded-xl px-4 py-2 text-[11px] font-bold transition-all ${canAdvanceQ1 ? "bg-[#3b6bca] text-white hover:bg-[#4a7ad9]" : "bg-[#e0deda] text-[#b0ada8] cursor-not-allowed"}`}
-                  >
+                  <button onClick={() => setQStep(2)} disabled={!canAdvanceQ1}
+                    className="flex items-center gap-1 rounded-xl px-4 py-2 text-[11px] font-bold transition-all"
+                    style={{ background: canAdvanceQ1 ? "#3B6BCA" : (dm ? "#2A2A2E" : "#E0DEDA"), color: canAdvanceQ1 ? "#fff" : muted, cursor: canAdvanceQ1 ? "pointer" : "not-allowed" }}>
                     Next <ChevronRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Q2 — Where will it be used? */}
+            {/* Q2 */}
             {qStep === 2 && (
-              <div className="rounded-2xl border border-[#e0deda] bg-white overflow-hidden">
-                <div className="px-4 pt-4 pb-3 border-b border-[#f0ede8]">
+              <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${border}`, background: panelBg }}>
+                <div className="px-4 pt-4 pb-3" style={{ borderBottom: `1px solid ${border}` }}>
                   <QProgress step={2} total={4} />
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-[#E67E5B] mb-1.5">Question 2 of 3</p>
-                  <p className="text-sm font-bold text-[#1a1a1c]">Where will it be used?</p>
-                  <p className="text-[10px] text-[#9a9a9e] mt-0.5">Select all that apply</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "#E67E5B" }}>Question 2 of 3</p>
+                  <p className="text-sm font-bold" style={{ color: ink }}>Where will it be used?</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: muted }}>Select all that apply</p>
                 </div>
                 <div className="px-4 py-3 flex flex-wrap gap-2">
-                  {[
-                    { val: "indoor",   label: "Indoors" },
-                    { val: "outdoor",  label: "Outdoors / UV" },
-                    { val: "heat",     label: "Near heat" },
-                    { val: "chemical", label: "Chemicals / liquids" },
-                    { val: "food",     label: "Food / skin contact" },
-                  ].map(({ val, label }) => (
-                    <QChip key={val} label={label} selected={(answers.environment ?? []).includes(val)} onClick={() => toggleEnv(val)} />
-                  ))}
+                  {["Indoors","Outdoors / UV","Near heat","Chemicals / liquids","Food / skin contact"].map((label, i) => {
+                    const vals = ["indoor","outdoor","heat","chemical","food"];
+                    return <QChip key={label} label={label} selected={(answers.environment ?? []).includes(vals[i])} onClick={() => toggleEnv(vals[i])} dm={dm} border={border} />;
+                  })}
                 </div>
                 <div className="flex justify-between px-4 pb-4">
-                  <button onClick={() => setQStep(1)} className="flex items-center gap-1 rounded-xl border border-[#e0deda] px-3 py-2 text-[11px] font-bold text-[#6a6a6e] hover:bg-[#f8f7f4]">
+                  <button onClick={() => setQStep(1)} className="flex items-center gap-1 rounded-xl px-3 py-2 text-[11px] font-bold transition-colors"
+                    style={{ border: `1px solid ${border}`, background: "transparent", color: dm ? "#AAA" : "#6A6A6E" }}>
                     <ChevronLeft className="h-3.5 w-3.5" /> Back
                   </button>
-                  <button
-                    onClick={() => setQStep(3)}
-                    disabled={!canAdvanceQ2}
-                    className={`flex items-center gap-1 rounded-xl px-4 py-2 text-[11px] font-bold transition-all ${canAdvanceQ2 ? "bg-[#E67E5B] text-white hover:bg-[#d46e4b]" : "bg-[#e0deda] text-[#b0ada8] cursor-not-allowed"}`}
-                  >
+                  <button onClick={() => setQStep(3)} disabled={!canAdvanceQ2}
+                    className="flex items-center gap-1 rounded-xl px-4 py-2 text-[11px] font-bold"
+                    style={{ background: canAdvanceQ2 ? "#E67E5B" : (dm ? "#2A2A2E" : "#E0DEDA"), color: canAdvanceQ2 ? "#fff" : muted, cursor: canAdvanceQ2 ? "pointer" : "not-allowed" }}>
                     Next <ChevronRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
             )}
 
-            {/* Q3 — What does it need to do well? */}
+            {/* Q3 */}
             {qStep === 3 && (
-              <div className="rounded-2xl border border-[#e0deda] bg-white overflow-hidden">
-                <div className="px-4 pt-4 pb-3 border-b border-[#f0ede8]">
+              <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${border}`, background: panelBg }}>
+                <div className="px-4 pt-4 pb-3" style={{ borderBottom: `1px solid ${border}` }}>
                   <QProgress step={3} total={4} />
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-[#5BB87E] mb-1.5">Question 3 of 3</p>
-                  <p className="text-sm font-bold text-[#1a1a1c]">What does it need to do well?</p>
-                  <p className="text-[10px] text-[#9a9a9e] mt-0.5">Select all that apply</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "#5BB87E" }}>Question 3 of 3</p>
+                  <p className="text-sm font-bold" style={{ color: ink }}>What does it need to do well?</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: muted }}>Select all that apply</p>
                 </div>
                 <div className="px-4 py-3 flex flex-wrap gap-2">
-                  {[
-                    { val: "drops",  label: "Survive drops" },
-                    { val: "finish", label: "Smooth finish" },
-                    { val: "stiff",  label: "Stay stiff" },
-                    { val: "cost",   label: "Low cost" },
-                    { val: "light",  label: "Lightweight" },
-                  ].map(({ val, label }) => (
-                    <QChip key={val} label={label} selected={(answers.requirements ?? []).includes(val)} onClick={() => toggleReq(val)} />
-                  ))}
+                  {["Survive drops","Smooth finish","Stay stiff","Low cost","Lightweight"].map((label, i) => {
+                    const vals = ["drops","finish","stiff","cost","light"];
+                    return <QChip key={label} label={label} selected={(answers.requirements ?? []).includes(vals[i])} onClick={() => toggleReq(vals[i])} dm={dm} border={border} />;
+                  })}
                 </div>
                 <div className="flex justify-between px-4 pb-4">
-                  <button onClick={() => setQStep(2)} className="flex items-center gap-1 rounded-xl border border-[#e0deda] px-3 py-2 text-[11px] font-bold text-[#6a6a6e] hover:bg-[#f8f7f4]">
+                  <button onClick={() => setQStep(2)} className="flex items-center gap-1 rounded-xl px-3 py-2 text-[11px] font-bold"
+                    style={{ border: `1px solid ${border}`, background: "transparent", color: dm ? "#AAA" : "#6A6A6E" }}>
                     <ChevronLeft className="h-3.5 w-3.5" /> Back
                   </button>
-                  <button
-                    onClick={() => setQStep(4)}
-                    disabled={!canAdvanceQ3}
-                    className={`flex items-center gap-1 rounded-xl px-4 py-2 text-[11px] font-bold transition-all ${canAdvanceQ3 ? "bg-[#5BB87E] text-white hover:bg-[#4aaa6e]" : "bg-[#e0deda] text-[#b0ada8] cursor-not-allowed"}`}
-                  >
+                  <button onClick={() => setQStep(4)} disabled={!canAdvanceQ3}
+                    className="flex items-center gap-1 rounded-xl px-4 py-2 text-[11px] font-bold"
+                    style={{ background: canAdvanceQ3 ? "#5BB87E" : (dm ? "#2A2A2E" : "#E0DEDA"), color: canAdvanceQ3 ? "#fff" : muted, cursor: canAdvanceQ3 ? "pointer" : "not-allowed" }}>
                     Next <ChevronRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -371,41 +368,37 @@ const WizardPanel = ({
 
             {/* Q4 — Quantity */}
             {qStep === 4 && (
-              <div className="rounded-2xl border border-[#e0deda] bg-white overflow-hidden">
-                <div className="px-4 pt-4 pb-3 border-b border-[#f0ede8]">
+              <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${border}`, background: panelBg }}>
+                <div className="px-4 pt-4 pb-3" style={{ borderBottom: `1px solid ${border}` }}>
                   <QProgress step={4} total={4} />
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9aff] mb-1.5">Almost there</p>
-                  <p className="text-sm font-bold text-[#1a1a1c]">Production quantity</p>
-                  <p className="text-[10px] text-[#9a9a9e] mt-0.5">This affects mold type and per-unit cost</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest mb-1.5" style={{ color: "#9A9AFF" }}>Almost there</p>
+                  <p className="text-sm font-bold" style={{ color: ink }}>Production quantity</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: muted }}>This affects mold type and per-unit cost</p>
                 </div>
                 <div className="px-4 py-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-[#6a6a6e]">Quantity</span>
-                    <span className="text-lg font-black tabular-nums text-[#1a1a1c]">{quantity.toLocaleString("en-IN")} <span className="text-[10px] font-normal text-[#b0ada8]">units</span></span>
+                    <span className="text-[11px]" style={{ color: dm ? "#AAA" : "#6A6A6E" }}>Quantity</span>
+                    <span className="text-lg font-black tabular-nums" style={{ color: ink }}>{quantity.toLocaleString("en-IN")} <span className="text-[10px] font-normal" style={{ color: faint }}>units</span></span>
                   </div>
-                  <input
-                    type="range" min={0} max={QTY_STEPS.length - 1} step={1} value={qtyIndex}
+                  <input type="range" min={0} max={QTY_STEPS.length - 1} step={1} value={qtyIndex}
                     onChange={(e) => onQuantityChange(QTY_STEPS[parseInt(e.target.value)])}
                     className="w-full cursor-pointer appearance-none rounded-full accent-[#9a9aff]"
-                    style={{ height: 4, background: "#e0deda" }}
-                  />
-                  <div className="flex justify-between text-[8px] text-[#b0ada8]">
+                    style={{ height: 4, background: border }} />
+                  <div className="flex justify-between text-[8px]" style={{ color: faint }}>
                     {QTY_STEPS.map((q) => (
-                      <span key={q} className={quantity === q ? "text-[#9a9aff] font-bold" : ""}>
+                      <span key={q} style={quantity === q ? { color: "#9A9AFF", fontWeight: 700 } : {}}>
                         {q >= 1000 ? `${q / 1000}k` : q}
                       </span>
                     ))}
                   </div>
                 </div>
                 <div className="flex justify-between px-4 pb-4">
-                  <button onClick={() => setQStep(3)} className="flex items-center gap-1 rounded-xl border border-[#e0deda] px-3 py-2 text-[11px] font-bold text-[#6a6a6e] hover:bg-[#f8f7f4]">
+                  <button onClick={() => setQStep(3)} className="flex items-center gap-1 rounded-xl px-3 py-2 text-[11px] font-bold"
+                    style={{ border: `1px solid ${border}`, background: "transparent", color: dm ? "#AAA" : "#6A6A6E" }}>
                     <ChevronLeft className="h-3.5 w-3.5" /> Back
                   </button>
-                  <button
-                    onClick={handleProceedToPull}
-                    className="flex items-center gap-1 rounded-xl px-4 py-2 text-[11px] font-bold text-white transition-all hover:opacity-90"
-                    style={{ background: "#9a9aff" }}
-                  >
+                  <button onClick={handleProceedToPull} className="flex items-center gap-1 rounded-xl px-4 py-2 text-[11px] font-bold text-white hover:opacity-90"
+                    style={{ background: "#9A9AFF" }}>
                     Get recommendation <ChevronRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -414,31 +407,27 @@ const WizardPanel = ({
           </div>
         )}
 
-        {/* ── STEP 3 — Face selection ── */}
-        {step === 3 && (
-          <div className="space-y-3">
-            {/* Recommendation card — only thing shown */}
-            {recommendation && (
-              <div className="rounded-2xl overflow-hidden" style={{ border: "0.5px solid #c8ddf8" }}>
-                <div className="px-4 py-3" style={{ background: "linear-gradient(135deg, #EEF2FC 0%, #F5F8FF 100%)" }}>
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-[#6a9fd8] mb-1">Recommended material</p>
-                  <p className="text-base font-black text-[#1a1a1c]">{recommendation.label}</p>
-                  <p className="text-[11px] text-[#6a6a6e] leading-relaxed mt-1">{recommendation.reason}</p>
-                </div>
-                <div className="px-4 py-2 border-t border-[#dce8fa]" style={{ background: "#F8FAFF" }}>
-                  <p className="text-[10px] text-[#9a9aff]">To override → use material selector on the right panel.</p>
-                </div>
-              </div>
-            )}
+        {/* ── STEP 3 — Recommendation only ── */}
+        {step === 3 && recommendation && (
+          <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid #3B6BCA40` }}>
+            <div className="px-4 py-3" style={{ background: dm ? "#1A2540" : "linear-gradient(135deg, #EEF2FC 0%, #F5F8FF 100%)" }}>
+              <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: "#6A9FD8" }}>Recommended material</p>
+              <p className="text-base font-black" style={{ color: ink }}>{recommendation.label}</p>
+              <p className="text-[11px] leading-relaxed mt-1" style={{ color: dm ? "#AAA" : "#6A6A6E" }}>{recommendation.reason}</p>
+            </div>
+            <div className="px-4 py-2" style={{ borderTop: `1px solid #3B6BCA30`, background: dm ? "#141C30" : "#F8FAFF" }}>
+              <p className="text-[10px]" style={{ color: "#9A9AFF" }}>To override → use material selector on the right panel.</p>
+            </div>
           </div>
         )}
 
       </div>
 
-      {/* Footer — only Back on step 2 q1 */}
-      <div className="shrink-0 border-t border-[#e0deda] bg-white px-4 py-3 flex gap-2">
+      {/* Footer */}
+      <div className="shrink-0 px-4 py-3 flex gap-2" style={{ borderTop: `1px solid ${border}`, background: panelBg }}>
         {step === 2 && qStep === 1 && (
-          <button onClick={() => setStep(1)} className="flex items-center gap-1 rounded-xl border border-[#e0deda] px-3 py-2 text-[11px] font-bold text-[#6a6a6e] hover:bg-[#f8f7f4] transition-colors">
+          <button onClick={() => setStep(1)} className="flex items-center gap-1 rounded-xl px-3 py-2 text-[11px] font-bold transition-colors"
+            style={{ border: `1px solid ${border}`, color: dm ? "#AAA" : "#6A6A6E", background: "transparent" }}>
             <ChevronLeft className="h-3.5 w-3.5" /> Back
           </button>
         )}

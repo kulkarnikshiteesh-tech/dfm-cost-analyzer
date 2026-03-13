@@ -165,18 +165,14 @@ interface CADViewerProps {
   onTryAnother?: () => void;
   onStartOver?: () => void;
   analysisComplete?: boolean;
+  darkMode?: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 const CADViewer = ({
-  glbUrl,
-  uploadGlbFilename,
-  selectionMode = false,
-  onAnalysisResult,
-  onFaceConfirmed,
-  onTryAnother,
-  onStartOver,
-  analysisComplete = false,
+  glbUrl, uploadGlbFilename, selectionMode = false,
+  onAnalysisResult, onFaceConfirmed, onTryAnother, onStartOver,
+  analysisComplete = false, darkMode: dm = false,
 }: CADViewerProps) => {
   const [viewerGlbUrl, setViewerGlbUrl] = useState<string | null>(null);
   const [highlightNormal, setHighlightNormal] = useState<THREE.Vector3 | null>(null);
@@ -263,21 +259,30 @@ const CADViewer = ({
     onFaceConfirmed?.();
   };
 
+  const popupBg     = dm ? "rgba(24,24,27,0.97)"  : "rgba(255,255,255,0.98)";
+  const popupBorder = dm ? "#2A2A2E" : "#E0DEDA";
+  const popupInk    = dm ? "#F0EFE8" : "#1A1A1C";
+  const popupMuted  = dm ? "#AAA"    : "#6A6A6E";
+  const popupFaint  = dm ? "#666"    : "#9A9A9E";
+  const secondaryBtnBg = dm ? "#28282C" : "#F0EDE8";
+
   return (
-    <div className="relative h-full w-full overflow-hidden" style={{ background: "#f5f4f0" }}>
+    <div className="relative h-full w-full overflow-hidden" style={{ background: dm ? "#0F0F11" : "#F5F4F0" }}>
 
       {/* Badge */}
-      <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-lg border border-[#e0deda] bg-white/90 px-3 py-1.5 backdrop-blur-sm shadow-sm">
+      <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-lg px-3 py-1.5 backdrop-blur-sm shadow-sm"
+        style={{ border: `1px solid ${popupBorder}`, background: popupBg }}>
         <div className="h-1.5 w-1.5 rounded-full bg-[#4caf72] animate-pulse" />
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-[#9a9a9e]">3D Preview</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: popupFaint }}>3D Preview</span>
       </div>
 
       {/* Prompt — waiting for face click */}
       {selectionMode && !pendingNormal && !analysing && !confirmed && viewerGlbUrl && (
         <div className="absolute top-4 right-4 z-10 pointer-events-none">
-          <div className="rounded-xl border border-[#e0a020]/50 bg-white/95 px-5 py-3 text-center shadow-lg backdrop-blur-sm">
-            <p className="text-xs font-semibold text-[#c08010]">Select Top / Bottom face</p>
-            <p className="mt-1 text-[10px] text-[#9a9a9e]">Click a face — highlighted in yellow, then analyse</p>
+          <div className="rounded-xl px-5 py-3 text-center shadow-lg backdrop-blur-sm"
+            style={{ border: `1px solid #E0A02050`, background: popupBg }}>
+            <p className="text-xs font-semibold" style={{ color: "#C08010" }}>Select Top / Bottom face</p>
+            <p className="mt-1 text-[10px]" style={{ color: popupFaint }}>Click a face — highlighted in yellow, then analyse</p>
           </div>
         </div>
       )}
@@ -285,20 +290,19 @@ const CADViewer = ({
       {/* Face highlighted — show Analyse + Cancel */}
       {selectionMode && pendingNormal && !analysing && !latestResult && !confirmed && (
         <div className="absolute top-4 right-4 z-10">
-          <div className="rounded-xl border border-[#e0deda] bg-white/98 px-5 py-4 shadow-lg backdrop-blur-sm text-center">
-            <p className="text-[10px] uppercase tracking-widest text-[#9a9a9e] mb-1">Face selected</p>
-            <p className="text-xs text-[#6a6a6e] mb-3">Yellow face highlighted — analyse to see undercut % and cost</p>
+          <div className="rounded-xl px-5 py-4 shadow-lg backdrop-blur-sm text-center"
+            style={{ border: `1px solid ${popupBorder}`, background: popupBg }}>
+            <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: popupFaint }}>Face selected</p>
+            <p className="text-xs mb-3" style={{ color: popupMuted }}>Yellow face highlighted — analyse to see undercut % and cost</p>
             <div className="flex gap-2">
-              <button
-                onClick={handleAnalyse}
-                className="flex-1 rounded-lg bg-[#3b6bca] px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-white hover:bg-[#4a7ad9] transition-colors"
-              >
+              <button onClick={handleAnalyse}
+                className="flex-1 rounded-lg px-4 py-2 text-[11px] font-bold uppercase tracking-widest text-white hover:opacity-90 transition-colors"
+                style={{ background: "#3B6BCA" }}>
                 Analyse this face
               </button>
-              <button
-                onClick={handleTryAnother}
-                className="rounded-lg bg-[#f0ede8] px-3 py-2 text-[11px] font-bold text-[#6a6a6e] hover:bg-[#e8e5e0] transition-colors"
-              >
+              <button onClick={handleTryAnother}
+                className="rounded-lg px-3 py-2 text-[11px] font-bold transition-colors"
+                style={{ background: secondaryBtnBg, color: popupMuted }}>
                 Cancel
               </button>
             </div>
@@ -309,9 +313,10 @@ const CADViewer = ({
       {/* Analysing spinner */}
       {analysing && (
         <div className="absolute top-4 right-4 z-10">
-          <div className="flex items-center gap-2.5 rounded-xl border border-[#e0deda] bg-white/98 px-5 py-3 shadow-lg backdrop-blur-sm">
+          <div className="flex items-center gap-2.5 rounded-xl px-5 py-3 shadow-lg backdrop-blur-sm"
+            style={{ border: `1px solid ${popupBorder}`, background: popupBg }}>
             <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#3b6bca] border-t-transparent" />
-            <span className="text-[11px] font-semibold text-[#6a6a6e]">Analysing…</span>
+            <span className="text-[11px] font-semibold" style={{ color: popupMuted }}>Analysing…</span>
           </div>
         </div>
       )}
@@ -319,41 +324,39 @@ const CADViewer = ({
       {/* Result — "Accept as Top / Bottom face?" */}
       {latestResult && !analysing && !confirmed && (
         <div className="absolute top-4 right-4 z-10 w-72">
-          <div className="rounded-xl border border-[#e0deda] bg-white/98 px-5 py-4 shadow-lg backdrop-blur-sm">
-
-            <div className={`rounded-lg px-3 py-2 mb-3 ${
-              latestResult.has_undercuts
+          <div className="rounded-xl px-5 py-4 shadow-lg backdrop-blur-sm"
+            style={{ border: `1px solid ${popupBorder}`, background: popupBg }}>
+            {/* Severity badge */}
+            <div className="rounded-lg px-3 py-2 mb-3" style={{
+              background: latestResult.has_undercuts
                 ? latestResult.undercut_severity === "high"
-                  ? "bg-[#fff0f0] border border-[#fca5a5]"
-                  : "bg-[#fffbf0] border border-[#fcd34d]"
-                : "bg-[#f0faf4] border border-[#86efac]"
-            }`}>
-              <p className={`text-xs font-bold ${
-                latestResult.has_undercuts
-                  ? latestResult.undercut_severity === "high" ? "text-[#dc2626]" : "text-[#c08010]"
-                  : "text-[#16a34a]"
-              }`}>
+                  ? (dm ? "#200A0A" : "#FFF0F0")
+                  : (dm ? "#211800" : "#FFFBF0")
+                : (dm ? "#0D2218" : "#F0FAF4"),
+              border: `1px solid ${latestResult.has_undercuts
+                ? latestResult.undercut_severity === "high" ? "#E05050" : "#E0A020"
+                : "#5BB87E"}40`,
+            }}>
+              <p className="text-xs font-bold" style={{ color: latestResult.has_undercuts
+                ? latestResult.undercut_severity === "high" ? "#E05050" : "#C08010"
+                : "#5BB87E" }}>
                 {latestResult.has_undercuts
                   ? latestResult.undercut_severity === "high" ? "⚠ High undercut risk" : "⚠ Moderate undercut risk"
-                  : "✓ No undercut risk"
-                }
+                  : "✓ No undercut risk"}
               </p>
-              <p className="text-[10px] text-[#6a6a6e] mt-0.5 leading-snug">{latestResult.undercut_message}</p>
-              <p className="text-[10px] text-[#9a9a9e] mt-1 italic">Cost bar updated for this face</p>
+              <p className="text-[10px] mt-0.5 leading-snug" style={{ color: popupMuted }}>{latestResult.undercut_message}</p>
+              <p className="text-[10px] mt-1 italic" style={{ color: popupFaint }}>Cost bar updated for this face</p>
             </div>
-
-            <p className="text-[11px] font-bold text-[#1a1a1c] text-center mb-2">Accept as Top / Bottom face?</p>
+            <p className="text-[11px] font-bold text-center mb-2" style={{ color: popupInk }}>Accept as Top / Bottom face?</p>
             <div className="flex gap-2">
-              <button
-                onClick={handleConfirm}
-                className="flex-1 rounded-lg bg-[#3b6bca] px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-white hover:bg-[#4a7ad9] transition-colors"
-              >
+              <button onClick={handleConfirm}
+                className="flex-1 rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-white hover:opacity-90 transition-colors"
+                style={{ background: "#3B6BCA" }}>
                 Accept
               </button>
-              <button
-                onClick={handleTryAnother}
-                className="flex-1 rounded-lg bg-[#f0ede8] px-3 py-2 text-[11px] font-bold text-[#6a6a6e] hover:bg-[#e8e5e0] transition-colors"
-              >
+              <button onClick={handleTryAnother}
+                className="flex-1 rounded-lg px-3 py-2 text-[11px] font-bold transition-colors"
+                style={{ background: secondaryBtnBg, color: popupMuted }}>
                 Try another face
               </button>
             </div>
@@ -364,25 +367,22 @@ const CADViewer = ({
       {/* Confirmed */}
       {confirmed && (
         <div className="absolute top-4 right-4 z-10">
-          <div className="flex items-center gap-2.5 rounded-xl border border-[#c8ecd0] bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur-sm">
-            <span className="text-[#4caf72]">✓</span>
-            <span className="text-[11px] font-semibold text-[#4caf72]">Top / Bottom face confirmed</span>
-            <button
-              onClick={handleTryAnother}
-              className="ml-1 text-[9px] text-[#b0ada8] underline hover:text-[#6a6a6e]"
-            >
+          <div className="flex items-center gap-2.5 rounded-xl px-4 py-2.5 shadow-lg backdrop-blur-sm"
+            style={{ border: "1px solid #5BB87E40", background: popupBg }}>
+            <span style={{ color: "#4CAF72" }}>✓</span>
+            <span className="text-[11px] font-semibold" style={{ color: "#4CAF72" }}>Top / Bottom face confirmed</span>
+            <button onClick={handleTryAnother} className="ml-1 text-[9px] underline" style={{ color: popupFaint }}>
               change
             </button>
           </div>
         </div>
       )}
 
-      {/* Start over button */}
+      {/* Upload new model button */}
       {onStartOver && viewerGlbUrl && (
-        <button
-          onClick={onStartOver}
-          className="absolute bottom-4 left-4 z-10 flex items-center gap-1.5 rounded-lg border border-[#e0deda] bg-white/90 px-3 py-1.5 text-[10px] font-semibold text-[#9a9a9e] backdrop-blur-sm hover:text-[#6a6a6e] transition-colors"
-        >
+        <button onClick={onStartOver}
+          className="absolute bottom-4 left-4 z-10 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[10px] font-semibold backdrop-blur-sm transition-colors"
+          style={{ border: `1px solid ${popupBorder}`, background: popupBg, color: popupFaint }}>
           ↺ Upload new model
         </button>
       )}
