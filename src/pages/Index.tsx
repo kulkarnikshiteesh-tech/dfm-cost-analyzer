@@ -145,6 +145,8 @@ const Index = () => {
                 undercutMessage={analysisData.undercut_message}
                 onStartOver={handleStartOver}
                 darkMode={darkMode}
+                recommendedMaterial={recommendedMaterial}
+                material={material}
               />
             </div>
           )}
