@@ -18,7 +18,7 @@ const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      const response = await fetch("https://threed-backend-4v3g.onrender.com/upload", {
+      const response = await fetch("import.meta.env.VITE_API_URL", {
         method: "POST",
         body: formData,
       });
