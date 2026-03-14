@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Upload, FileBox, X, Loader2, ChevronRight, ChevronLeft, RotateCcw } from "lucide-react";
+import { Upload, FileBox, X, Loader2, ChevronRight, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 
 const BACKEND = import.meta.env.VITE_API_URL;
@@ -116,6 +116,50 @@ function QProgress({ step, total }: { step: number; total: number }) {
   );
 }
 
+// ── Error config ──────────────────────────────────────────────────────────────
+const ERROR_CONFIG: Record<string, { icon: string; title: (count: number | null) => string; color: string; bgDark: string; bgLight: string; borderColor: string }> = {
+  assembly: {
+    icon: "🔩",
+    title: (count) => `Assembly detected · ${count ?? "multiple"} parts`,
+    color: "#E05050",
+    bgDark: "#1A0A0A",
+    bgLight: "#FFF5F5",
+    borderColor: "#E05050",
+  },
+  multiple_parts: {
+    icon: "📦",
+    title: (count) => `Multiple bodies · ${count ?? "multiple"} found`,
+    color: "#E05050",
+    bgDark: "#1A0A0A",
+    bgLight: "#FFF5F5",
+    borderColor: "#E05050",
+  },
+  not_moldable: {
+    icon: "⛔",
+    title: () => "Not injection mouldable",
+    color: "#C08010",
+    bgDark: "#1A1000",
+    bgLight: "#FFFBF0",
+    borderColor: "#C08010",
+  },
+  geometry_error: {
+    icon: "⚠️",
+    title: () => "Geometry error",
+    color: "#C08010",
+    bgDark: "#1A1000",
+    bgLight: "#FFFBF0",
+    borderColor: "#C08010",
+  },
+  network_error: {
+    icon: "🔌",
+    title: () => "Upload failed",
+    color: "#C08010",
+    bgDark: "#1A1000",
+    bgLight: "#FFFBF0",
+    borderColor: "#C08010",
+  },
+};
+
 // ── Main component ────────────────────────────────────────────────────────────
 interface WizardPanelProps {
   onUploadSuccess: (data: any) => void;
@@ -148,28 +192,47 @@ const WizardPanel = ({
   const [answers, setAnswers] = useState<Partial<Answers>>({ environment: [], requirements: [] });
   const [recommendation, setRecommendation] = useState<{ id: string; label: string; reason: string } | null>(null);
   const [materialOverridden, setMaterialOverridden] = useState(false);
+  const [uploadError, setUploadError] = useState<{
+    code: string;
+    partCount: number | null;
+    message: string;
+  } | null>(null);
 
   const qtyIndex = QTY_STEPS.reduce((best, val, i) => Math.abs(val - quantity) < Math.abs(QTY_STEPS[best] - quantity) ? i : best, 0);
 
   const uploadFile = async (selectedFile: File) => {
     setIsUploading(true);
+    setUploadError(null);
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
       const response = await fetch(`${BACKEND}/upload`, { method: "POST", body: formData });
+
       if (response.status === 422) {
         const errData = await response.json();
-        const titles: Record<string, string> = { assembly: "Assembly detected", not_moldable: "Not injection moldable", geometry_error: "Geometry error" };
-        toast.error(`⚠️ ${titles[errData.error] ?? "Upload issue"} — ${errData.message}`, { duration: 8000 });
-        setFile(null); return;
+        const detail = errData.detail ?? errData;
+        setUploadError({
+          code: detail.error ?? "unknown",
+          partCount: detail.part_count ?? null,
+          message: detail.message ?? "There was a problem with this file.",
+        });
+        setFile(null);
+        setIsUploading(false);
+        return;
       }
+
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       if (data.glb_url?.startsWith("/static/")) data.glb_url = BACKEND + data.glb_url;
+      setUploadError(null);
       onUploadSuccess(data);
       setStep(2); setQStep(1);
     } catch (err: any) {
-      toast.error("Upload failed: " + err.message);
+      setUploadError({
+        code: "network_error",
+        partCount: null,
+        message: "Upload failed: " + err.message,
+      });
       setFile(null);
     } finally { setIsUploading(false); }
   };
@@ -207,6 +270,7 @@ const WizardPanel = ({
     setStep(1); setQStep(1); setFile(null);
     setAnswers({ environment: [], requirements: [] });
     setRecommendation(null); setMaterialOverridden(false);
+    setUploadError(null);
   };
 
   const bb = uploadedData?.bounding_box_mm;
@@ -232,40 +296,83 @@ const WizardPanel = ({
         {step === 1 && (
           <div className="space-y-3">
             <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: muted }}>Upload Geometry</p>
-            <label
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
-              className={`relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 transition-all ${isUploading ? "pointer-events-none opacity-60" : ""}`}
-              style={{ borderColor: isDragging ? "#3B6BCA" : border, background: isDragging ? (dm ? "#1A2540" : "#EEF2FC") : cardBg }}
-            >
-              <input type="file" accept=".step,.stp" onChange={handleFileSelect} className="sr-only" disabled={isUploading} />
-              {isUploading ? (
-                <>
-                  <Loader2 className="mb-2 h-7 w-7 animate-spin" style={{ color: "#3B6BCA" }} />
-                  <span className="text-sm font-bold" style={{ color: "#3B6BCA" }}>Analysing geometry…</span>
-                  <span className="mt-1 text-[10px]" style={{ color: muted }}>This may take a moment</span>
-                </>
-              ) : (
-                <>
-                  <div className="mb-3 rounded-xl p-3 shadow-sm" style={{ background: panelBg, border: `1px solid ${border}` }}>
-                    <Upload className="h-5 w-5" style={{ color: "#3B6BCA" }} />
+
+            {/* ── Persistent error state ── */}
+            {uploadError ? (() => {
+              const cfg = ERROR_CONFIG[uploadError.code] ?? {
+                icon: "⚠️",
+                title: () => "Upload issue",
+                color: "#C08010",
+                bgDark: "#1A1000",
+                bgLight: "#FFFBF0",
+                borderColor: "#C08010",
+              };
+              return (
+                <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${cfg.borderColor}40` }}>
+                  {/* Header */}
+                  <div className="px-4 py-3" style={{ background: dm ? cfg.bgDark : cfg.bgLight, borderBottom: `1px solid ${cfg.borderColor}25` }}>
+                    <div className="flex items-start gap-3">
+                      <span className="text-xl mt-0.5 shrink-0">{cfg.icon}</span>
+                      <div>
+                        <p className="text-[11px] font-black uppercase tracking-widest mb-1" style={{ color: cfg.color }}>
+                          {cfg.title(uploadError.partCount)}
+                        </p>
+                        <p className="text-[11px] leading-relaxed" style={{ color: dm ? "#CC9090" : "#5A3A3A" }}>
+                          {uploadError.message}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-sm font-bold" style={{ color: ink }}>Drop .step here</span>
-                  <span className="mt-0.5 text-[10px] uppercase tracking-wider" style={{ color: muted }}>or click to browse</span>
-                </>
-              )}
-            </label>
-            {file && !isUploading && (
-              <div className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ border: "1px solid #3B6BCA50", background: dm ? "#1A2540" : "#EEF2FC" }}>
-                <FileBox className="h-4 w-4 shrink-0" style={{ color: "#3B6BCA" }} />
-                <span className="flex-1 truncate text-xs font-bold font-mono" style={{ color: ink }}>{file.name}</span>
-                <button onClick={() => setFile(null)}><X className="h-3.5 w-3.5" style={{ color: muted }} /></button>
-              </div>
+                  {/* Action */}
+                  <div className="px-4 py-3" style={{ background: panelBg }}>
+                    <button
+                      onClick={() => { setUploadError(null); setFile(null); }}
+                      className="w-full rounded-xl px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white transition-all hover:opacity-90"
+                      style={{ background: "#3B6BCA" }}
+                    >
+                      Try a different file
+                    </button>
+                  </div>
+                </div>
+              );
+            })() : (
+              <>
+                <label
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDrop}
+                  className={`relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 transition-all ${isUploading ? "pointer-events-none opacity-60" : ""}`}
+                  style={{ borderColor: isDragging ? "#3B6BCA" : border, background: isDragging ? (dm ? "#1A2540" : "#EEF2FC") : cardBg }}
+                >
+                  <input type="file" accept=".step,.stp" onChange={handleFileSelect} className="sr-only" disabled={isUploading} />
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="mb-2 h-7 w-7 animate-spin" style={{ color: "#3B6BCA" }} />
+                      <span className="text-sm font-bold" style={{ color: "#3B6BCA" }}>Analysing geometry…</span>
+                      <span className="mt-1 text-[10px]" style={{ color: muted }}>This may take a moment</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mb-3 rounded-xl p-3 shadow-sm" style={{ background: panelBg, border: `1px solid ${border}` }}>
+                        <Upload className="h-5 w-5" style={{ color: "#3B6BCA" }} />
+                      </div>
+                      <span className="text-sm font-bold" style={{ color: ink }}>Drop .step here</span>
+                      <span className="mt-0.5 text-[10px] uppercase tracking-wider" style={{ color: muted }}>or click to browse</span>
+                    </>
+                  )}
+                </label>
+                {file && !isUploading && (
+                  <div className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{ border: "1px solid #3B6BCA50", background: dm ? "#1A2540" : "#EEF2FC" }}>
+                    <FileBox className="h-4 w-4 shrink-0" style={{ color: "#3B6BCA" }} />
+                    <span className="flex-1 truncate text-xs font-bold font-mono" style={{ color: ink }}>{file.name}</span>
+                    <button onClick={() => setFile(null)}><X className="h-3.5 w-3.5" style={{ color: muted }} /></button>
+                  </div>
+                )}
+                <div className="rounded-xl px-3 py-2.5" style={{ border: `1px solid ${border}`, background: cardBg }}>
+                  <p className="text-[11px]" style={{ color: dm ? "#AAA" : "#6A6A6E" }}>.STEP / .STP only · Single part · No assemblies</p>
+                </div>
+              </>
             )}
-            <div className="rounded-xl px-3 py-2.5" style={{ border: `1px solid ${border}`, background: cardBg }}>
-              <p className="text-[11px]" style={{ color: dm ? "#AAA" : "#6A6A6E" }}>.STEP / .STP only · Single part · No assemblies</p>
-            </div>
           </div>
         )}
 
