@@ -48,20 +48,18 @@ const Index = () => {
   const stepLabels = ["Upload", "Configure", "Direction"];
   const accentColors = ["#3B6BCA", "#E67E5B", "#5BB87E"];
 
-  // Dark mode tokens
   const dm = darkMode;
   const bg      = dm ? "#0F0F11" : "#F5F4F0";
   const panelBg = dm ? "#18181B" : "#FFFFFF";
   const border  = dm ? "#2A2A2E" : "#E0DEDA";
   const ink     = dm ? "#F0EFE8" : "#1A1A1C";
-  const muted   = dm ? "#888" : "#9A9A9E";
+  const muted   = dm ? "#888"    : "#9A9A9E";
 
   return (
     <div className="flex flex-col font-sans" style={{ height: "100vh", overflow: "hidden", background: bg, color: ink, transition: "background 0.2s, color 0.2s" }}>
 
       {/* ── HEADER ── */}
       <header className="flex shrink-0 items-center justify-between px-6" style={{ height: 48, background: panelBg, borderBottom: `1px solid ${border}` }}>
-        {/* Logo */}
         <div className="flex items-center gap-2.5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: "#3B6BCA" }}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -73,7 +71,6 @@ const Index = () => {
           <span className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest" style={{ background: dm ? "#28282C" : "#F0EDE8", color: muted }}>Beta</span>
         </div>
 
-        {/* Step indicators — center */}
         <div className="flex items-center gap-1">
           {stepLabels.map((label, i) => {
             const n = i + 1;
@@ -97,7 +94,6 @@ const Index = () => {
           })}
         </div>
 
-        {/* Right — dark mode toggle */}
         <div className="flex items-center gap-3">
           <span className="text-[10px] uppercase tracking-widest" style={{ color: muted }}>{dm ? "Dark" : "Light"}</span>
           <button
@@ -117,8 +113,12 @@ const Index = () => {
       {/* ── BODY ── */}
       <div className="flex min-h-0 flex-1">
 
-        {/* LEFT — wizard + DFM */}
-        <aside className="flex w-[308px] shrink-0 flex-col overflow-hidden" style={{ background: panelBg, borderRight: `1px solid ${border}` }}>
+        {/* LEFT — single scrollable column */}
+        <aside
+          className="flex w-[308px] shrink-0 flex-col overflow-y-auto"
+          style={{ background: panelBg, borderRight: `1px solid ${border}`, scrollbarWidth: "none" }}
+        >
+          {/* WizardPanel — collapses to compact summary on step 3 */}
           <WizardPanel
             key={wizardKey}
             onUploadSuccess={handleUploadSuccess}
@@ -135,8 +135,10 @@ const Index = () => {
             darkMode={darkMode}
             onStartOver={handleStartOver}
           />
+
+          {/* DFM Feedback — shown below wizard, no shrink-0, flows naturally */}
           {analysisData && (
-            <div className="shrink-0 overflow-y-auto" style={{ borderTop: `1px solid ${border}`, scrollbarWidth: "none" }}>
+            <div style={{ borderTop: `1px solid ${border}` }}>
               <DFMFeedback
                 volumeCubicMm={analysisData.volume_cubic_mm}
                 boundingBox={analysisData.bounding_box_mm ?? null}
