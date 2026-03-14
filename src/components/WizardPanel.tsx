@@ -273,7 +273,6 @@ const WizardPanel = ({
     setAnswers({ environment: [], requirements: [] });
     setRecommendation(null); setMaterialOverridden(false);
     setUploadError(null);
-    onStartOver?.();
   };
 
   const bb = uploadedData?.bounding_box_mm;
