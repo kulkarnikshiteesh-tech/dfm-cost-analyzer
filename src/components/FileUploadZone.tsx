@@ -18,7 +18,7 @@ const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      const response = await fetch("import.meta.env.VITE_API_URL", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
         method: "POST",
         body: formData,
       });
@@ -41,7 +41,7 @@ const FileUploadZone = ({ onUploadSuccess }: FileUploadZoneProps) => {
 
       const data = await response.json();
       if (data.glb_url && data.glb_url.startsWith("/static/")) {
-        data.glb_url = "https://threed-backend-4v3g.onrender.com" + data.glb_url;
+        data.glb_url = import.meta.env.VITE_API_URL + data.glb_url;
       }
 
       if (onUploadSuccess) onUploadSuccess(data);
