@@ -18,6 +18,7 @@ const Index = () => {
   const [recommendedMaterial, setRecommendedMaterial] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(false);
   const [wizardKey, setWizardKey] = useState(0);
+  const [selectedFinishes, setSelectedFinishes] = useState<string[]>([]);
 
   const wizardStep = !glbUrl ? 1 : !faceConfirmed ? 2 : 3;
 
@@ -40,6 +41,7 @@ const Index = () => {
     setGlbUrl(null); setUploadGlbFilename(null); setUploadData(null);
     setAnalysisData(null); setFaceConfirmed(false); setSelectionMode(false); setShowReport(false);
     setRecommendedMaterial(null); setMaterial("ABS"); setQuantity(1000);
+    setSelectedFinishes([]);
     setWizardKey(k => k + 1);
   };
 
@@ -118,7 +120,6 @@ const Index = () => {
           className="flex w-[308px] shrink-0 flex-col overflow-y-auto"
           style={{ background: panelBg, borderRight: `1px solid ${border}`, scrollbarWidth: "none" }}
         >
-          {/* WizardPanel — collapses to compact summary on step 3 */}
           <WizardPanel
             key={wizardKey}
             onUploadSuccess={handleUploadSuccess}
@@ -136,7 +137,6 @@ const Index = () => {
             onStartOver={handleStartOver}
           />
 
-          {/* DFM Feedback — shown below wizard, no shrink-0, flows naturally */}
           {analysisData && (
             <div style={{ borderTop: `1px solid ${border}` }}>
               <DFMFeedback
@@ -149,6 +149,7 @@ const Index = () => {
                 darkMode={darkMode}
                 recommendedMaterial={recommendedMaterial}
                 material={material}
+                onFinishesChange={setSelectedFinishes}
               />
             </div>
           )}
@@ -184,6 +185,7 @@ const Index = () => {
             onOpenReport={canShowReport ? () => setShowReport(true) : undefined}
             recommendedMaterial={recommendedMaterial}
             darkMode={darkMode}
+            selectedFinishes={selectedFinishes}
           />
         </aside>
 
@@ -198,6 +200,7 @@ const Index = () => {
           hasUndercuts={analysisData.has_undercuts}
           undercutSeverity={analysisData.undercut_severity}
           undercutMessage={analysisData.undercut_message}
+          selectedFinishes={selectedFinishes}
           onClose={() => setShowReport(false)}
         />
       )}
