@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { Upload, FileBox, X, Loader2, ChevronRight, ChevronLeft, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
-const BACKEND = "https://threed-backend-4v3g.onrender.com";
+const BACKEND = import.meta.env.VITE_API_URL;
 
 // ── Material database ─────────────────────────────────────────────────────────
 interface MaterialProfile {
