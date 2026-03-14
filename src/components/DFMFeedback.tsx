@@ -206,8 +206,6 @@ function getFinishesForMaterial(matId: string | null | undefined) {
   return { compatible, incompatible };
 }
 
-// ── Colors ────────────────────────────────────────────────────────────────────
-
 const rowColors = {
   success: { border: "#2AA05A", lightBg: "#C8F0D8", darkBg: "#0D2218", ink: "#0A4020", darkInk: "#80D8A8" },
   warning: { border: "#C88010", lightBg: "#FFE8B0", darkBg: "#2A1800", ink: "#5A3000", darkInk: "#E0A840" },
@@ -220,8 +218,6 @@ const severityColors: Record<string, { border: string; lightBg: string; darkBg: 
   low:      { border: "#2AA05A", lightBg: "#C8F0D8", darkBg: "#0D2218" },
   unknown:  { border: "#888",    lightBg: "#E8E8E8", darkBg: "#1E1E22" },
 };
-
-// ── Collapsible section wrapper ───────────────────────────────────────────────
 
 function CollapsibleSection({
   title, defaultOpen = true, dm, border, cardBg, ink, muted, children
@@ -251,8 +247,6 @@ function CollapsibleSection({
     </div>
   );
 }
-
-// ── Component ─────────────────────────────────────────────────────────────────
 
 const DFMFeedback = ({
   volumeCubicMm, boundingBox, hasUndercuts, undercutSeverity,
@@ -288,117 +282,7 @@ const DFMFeedback = ({
       ) : (
         <div className="space-y-2">
 
-          {/* ── Surface Finish — first, always expanded ── */}
-          <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${border}` }}>
-            {/* Header */}
-            <div className="px-3 py-2.5 flex items-center justify-between"
-              style={{ background: dm ? "#1A2540" : "#EEF2FC", borderBottom: `1px solid ${border}` }}>
-              <div className="flex items-center gap-2">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
-                  style={{ background: dm ? "#253050" : "#D6E4FF" }}>
-                  <span className="text-[11px]">✦</span>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold" style={{ color: "#3B6BCA" }}>Surface Finish Options</p>
-                  <p className="text-[9px]" style={{ color: faint }}>
-                    {compatible.length} compatible · {incompatible.length} not recommended
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Material context */}
-            {activeMat && (
-              <div className="px-3 py-1.5" style={{ background: dm ? "#111114" : "#F8F7F4", borderBottom: `1px solid ${border}` }}>
-                <p className="text-[9px]" style={{ color: faint }}>
-                  For <span className="font-bold" style={{ color: "#3B6BCA" }}>{activeMat}</span>
-                </p>
-              </div>
-            )}
-
-            {/* Tab toggle */}
-            <div className="flex px-3 pt-2.5 gap-2">
-              {(["in-mold", "post-mold"] as FinishCategory[]).map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setFinishTab(tab)}
-                  className="flex-1 rounded-lg py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all"
-                  style={{
-                    background: finishTab === tab ? "#3B6BCA" : (dm ? "#28282C" : "#F0EDE8"),
-                    color: finishTab === tab ? "#fff" : muted,
-                  }}
-                >
-                  {tab === "in-mold" ? "In-Mold" : "Post-Mold"}
-                </button>
-              ))}
-            </div>
-
-            {/* Tab description */}
-            <p className="px-3 pt-1.5 pb-1 text-[9px] leading-relaxed" style={{ color: faint }}>
-              {finishTab === "in-mold"
-                ? "Set during mold making. Adds to tooling cost only — zero per-piece cost."
-                : "Applied after ejection. Adds per-piece cost and lead time."}
-            </p>
-
-            {/* Disclaimer */}
-            <div className="mx-3 mb-2 rounded-lg px-2.5 py-1.5"
-              style={{ background: dm ? "#201800" : "#FFF8E0", border: "1px solid #C8900030" }}>
-              <p className="text-[9px] leading-snug" style={{ color: dm ? "#B09030" : "#7A5800" }}>
-                ⚠ Costs are approximate indicative ranges. Actual vendor quotes may vary.
-              </p>
-            </div>
-
-            {/* Finish cards */}
-            <div className="px-3 pb-3 space-y-1.5">
-              {visibleFinishes.length === 0 ? (
-                <p className="text-[11px] text-center py-3" style={{ color: faint }}>
-                  No compatible {finishTab} finishes for this material.
-                </p>
-              ) : (
-                visibleFinishes.map((f, i) => (
-                  <div key={i} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${f.accentColor}50` }}>
-                    {/* Solid color header */}
-                    <div className="px-3 py-1.5 flex items-center gap-2"
-                      style={{ background: dm ? f.headerBgDark : f.headerBg }}>
-                      <p className="text-[11px] font-black" style={{ color: dm ? "#F0EFE8" : "#1A1A1C" }}>{f.name}</p>
-                      {f.grade && (
-                        <span className="rounded px-1.5 py-0.5 text-[8px] font-bold uppercase"
-                          style={{ background: f.accentColor, color: "#fff" }}>
-                          {f.grade}
-                        </span>
-                      )}
-                    </div>
-                    {/* Body */}
-                    <div className="px-3 py-2 space-y-1" style={{ background: dm ? "#1A1A1E" : "#FFFFFF" }}>
-                      <p className="text-[10px] leading-snug" style={{ color: muted }}>{f.description}</p>
-                      <p className="text-[11px] font-black" style={{ color: f.accentColor }}>{f.costLabel}</p>
-                      <p className="text-[9px]" style={{ color: faint }}>{f.costNote}</p>
-                      {f.leadTime && (
-                        <p className="text-[9px] font-semibold" style={{ color: "#C88010" }}>⏱ {f.leadTime}</p>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Incompatible */}
-            {incompatibleInTab.length > 0 && (
-              <div className="px-3 pb-3">
-                <div className="rounded-lg px-3 py-2"
-                  style={{ background: dm ? "#280808" : "#FFD0D0", border: "1px solid #C0202050" }}>
-                  <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: "#C02020" }}>
-                    Not recommended for {activeMat}
-                  </p>
-                  <p className="text-[10px] leading-snug" style={{ color: dm ? "#E08080" : "#6A1010" }}>
-                    {incompatibleInTab.map(f => f.name).join(", ")}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ── Collapsible: Geometry ── */}
+          {/* 1. GEOMETRY — collapsed by default */}
           <CollapsibleSection title="Geometry" defaultOpen={false} dm={dm} border={border} cardBg={cardBg} ink={ink} muted={muted}>
             <div className="rounded-lg px-3 py-2 space-y-1.5"
               style={{ background: dm ? "#101A30" : "#D6E4FF", border: "1px solid #3B6BCA40" }}>
@@ -419,7 +303,7 @@ const DFMFeedback = ({
             </div>
           </CollapsibleSection>
 
-          {/* ── Collapsible: DFM Checks ── */}
+          {/* 2. DFM CHECKS — collapsed by default */}
           <CollapsibleSection title="DFM Checks" defaultOpen={false} dm={dm} border={border} cardBg={cardBg} ink={ink} muted={muted}>
             {undercutMessage && (
               <div className="rounded-lg px-3 py-2.5 flex items-start gap-2.5"
@@ -455,6 +339,107 @@ const DFMFeedback = ({
               </div>
             </div>
           </CollapsibleSection>
+
+          {/* 3. SURFACE FINISH — always expanded */}
+          <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${border}` }}>
+            <div className="px-3 py-2.5 flex items-center justify-between"
+              style={{ background: dm ? "#1A2540" : "#EEF2FC", borderBottom: `1px solid ${border}` }}>
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
+                  style={{ background: dm ? "#253050" : "#D6E4FF" }}>
+                  <span className="text-[11px]">✦</span>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold" style={{ color: "#3B6BCA" }}>Surface Finish Options</p>
+                  <p className="text-[9px]" style={{ color: faint }}>
+                    {compatible.length} compatible · {incompatible.length} not recommended
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {activeMat && (
+              <div className="px-3 py-1.5" style={{ background: dm ? "#111114" : "#F8F7F4", borderBottom: `1px solid ${border}` }}>
+                <p className="text-[9px]" style={{ color: faint }}>
+                  For <span className="font-bold" style={{ color: "#3B6BCA" }}>{activeMat}</span>
+                </p>
+              </div>
+            )}
+
+            <div className="flex px-3 pt-2.5 gap-2">
+              {(["in-mold", "post-mold"] as FinishCategory[]).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setFinishTab(tab)}
+                  className="flex-1 rounded-lg py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all"
+                  style={{
+                    background: finishTab === tab ? "#3B6BCA" : (dm ? "#28282C" : "#F0EDE8"),
+                    color: finishTab === tab ? "#fff" : muted,
+                  }}
+                >
+                  {tab === "in-mold" ? "In-Mold" : "Post-Mold"}
+                </button>
+              ))}
+            </div>
+
+            <p className="px-3 pt-1.5 pb-1 text-[9px] leading-relaxed" style={{ color: faint }}>
+              {finishTab === "in-mold"
+                ? "Set during mold making. Adds to tooling cost only — zero per-piece cost."
+                : "Applied after ejection. Adds per-piece cost and lead time."}
+            </p>
+
+            <div className="mx-3 mb-2 rounded-lg px-2.5 py-1.5"
+              style={{ background: dm ? "#201800" : "#FFF8E0", border: "1px solid #C8900030" }}>
+              <p className="text-[9px] leading-snug" style={{ color: dm ? "#B09030" : "#7A5800" }}>
+                ⚠ Costs are approximate indicative ranges. Actual vendor quotes may vary.
+              </p>
+            </div>
+
+            <div className="px-3 pb-3 space-y-1.5">
+              {visibleFinishes.length === 0 ? (
+                <p className="text-[11px] text-center py-3" style={{ color: faint }}>
+                  No compatible {finishTab} finishes for this material.
+                </p>
+              ) : (
+                visibleFinishes.map((f, i) => (
+                  <div key={i} className="rounded-lg overflow-hidden" style={{ border: `1px solid ${f.accentColor}50` }}>
+                    <div className="px-3 py-1.5 flex items-center gap-2"
+                      style={{ background: dm ? f.headerBgDark : f.headerBg }}>
+                      <p className="text-[11px] font-black" style={{ color: dm ? "#F0EFE8" : "#1A1A1C" }}>{f.name}</p>
+                      {f.grade && (
+                        <span className="rounded px-1.5 py-0.5 text-[8px] font-bold uppercase"
+                          style={{ background: f.accentColor, color: "#fff" }}>
+                          {f.grade}
+                        </span>
+                      )}
+                    </div>
+                    <div className="px-3 py-2 space-y-1" style={{ background: dm ? "#1A1A1E" : "#FFFFFF" }}>
+                      <p className="text-[10px] leading-snug" style={{ color: muted }}>{f.description}</p>
+                      <p className="text-[11px] font-black" style={{ color: f.accentColor }}>{f.costLabel}</p>
+                      <p className="text-[9px]" style={{ color: faint }}>{f.costNote}</p>
+                      {f.leadTime && (
+                        <p className="text-[9px] font-semibold" style={{ color: "#C88010" }}>⏱ {f.leadTime}</p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {incompatibleInTab.length > 0 && (
+              <div className="px-3 pb-3">
+                <div className="rounded-lg px-3 py-2"
+                  style={{ background: dm ? "#280808" : "#FFD0D0", border: "1px solid #C0202050" }}>
+                  <p className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: "#C02020" }}>
+                    Not recommended for {activeMat}
+                  </p>
+                  <p className="text-[10px] leading-snug" style={{ color: dm ? "#E08080" : "#6A1010" }}>
+                    {incompatibleInTab.map(f => f.name).join(", ")}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Start over */}
           {onStartOver && (
