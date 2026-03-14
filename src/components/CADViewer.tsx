@@ -3,7 +3,7 @@ import { OrbitControls, Environment, RoundedBox, useGLTF } from "@react-three/dr
 import { useRef, Suspense, useEffect, useState, useCallback } from "react";
 import * as THREE from "three";
 
-const BACKEND = "https://threed-backend-4v3g.onrender.com";
+const BACKEND = import.meta.env.VITE_API_URL;
 
 // ── Spinning cube (empty state) ───────────────────────────────────────────────
 function SpinningCube() {
