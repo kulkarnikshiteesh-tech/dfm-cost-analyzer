@@ -174,6 +174,7 @@ interface WizardPanelProps {
   faceConfirmed: boolean;
   analysisData?: any;
   darkMode?: boolean;
+  onStartOver?: () => void;
 }
 
 type Step = 1 | 2 | 3;
@@ -183,6 +184,7 @@ const WizardPanel = ({
   onUploadSuccess, onMaterialChange, onQuantityChange, onRequestFaceSelection,
   onRecommendationChange, uploadedData, quantity, faceConfirmed, analysisData,
   darkMode: dm = false,
+  onStartOver,
 }: WizardPanelProps) => {
   const [step, setStep] = useState<Step>(1);
   const [qStep, setQStep] = useState<QStep>(1);
@@ -271,6 +273,7 @@ const WizardPanel = ({
     setAnswers({ environment: [], requirements: [] });
     setRecommendation(null); setMaterialOverridden(false);
     setUploadError(null);
+    onStartOver?.();
   };
 
   const bb = uploadedData?.bounding_box_mm;
