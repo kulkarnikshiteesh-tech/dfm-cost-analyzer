@@ -129,6 +129,7 @@ const Index = () => {
             analysisData={analysisData}
             onRecommendationChange={setRecommendedMaterial}
             darkMode={darkMode}
+            onStartOver={handleStartOver}
           />
           {analysisData && (
             <div className="shrink-0 overflow-y-auto" style={{ borderTop: `1px solid ${border}`, scrollbarWidth: "none" }}>
