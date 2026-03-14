@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { ALL_FINISHES } from "./DFMFeedback";
 
 const MATERIALS: Record<string, { density: number; pricePerKg: number; label: string; notes: string }> = {
   ABS:   { density: 1.05, pricePerKg: 120, label: "ABS",            notes: "General purpose, indoor, good surface finish" },
@@ -25,16 +26,9 @@ const SCRAP = 1.05;
 const MARGIN = 1.15;
 const DESIGN_COST = 10000;
 const RATE = 400;
+const UNDERCUT_SURCHARGE: Record<string, number> = { high: 0.35, moderate: 0.15, low: 0 };
 
-const UNDERCUT_SURCHARGE: Record<string, number> = {
-  high: 0.35,
-  moderate: 0.15,
-  low: 0,
-};
-
-function getMoldTier(qty: number) {
-  return MOLD_TIERS.find((t) => qty <= t.maxQty)!;
-}
+function getMoldTier(qty: number) { return MOLD_TIERS.find((t) => qty <= t.maxQty)!; }
 
 interface ReportModalProps {
   volumeCubicMm: number;
@@ -44,21 +38,16 @@ interface ReportModalProps {
   hasUndercuts?: boolean | null;
   undercutSeverity?: string | null;
   undercutMessage?: string | null;
+  selectedFinishes?: string[];
   onClose: () => void;
 }
 
 export default function ReportModal({
-  volumeCubicMm,
-  boundingBox,
-  material,
-  quantity,
-  hasUndercuts,
-  undercutSeverity,
-  undercutMessage,
-  onClose,
+  volumeCubicMm, boundingBox, material, quantity,
+  hasUndercuts, undercutSeverity, undercutMessage,
+  selectedFinishes = [], onClose,
 }: ReportModalProps) {
 
-  // ── Calculations ────────────────────────────────────────────────────────────
   const tier = getMoldTier(quantity);
   const { x, y, z } = boundingBox;
   const pad = Math.min(25, Math.max(15, Math.max(x, y, z) * 0.12));
@@ -81,7 +70,15 @@ export default function ReportModal({
   const machineCost   = Math.round(cycleHr * MACHINE_RATE * 100) / 100;
   const operatorCost  = Math.round(cycleHr * OPERATOR_RATE * 100) / 100;
   const perPieceBase  = Math.round((matCost + machineCost + operatorCost) * OVERHEAD * MARGIN * 100) / 100;
-  const totalPerUnit  = Math.round((totalMold + perPieceBase * quantity) / quantity);
+
+  // Finish costs
+  const selectedFinishData = ALL_FINISHES.filter(f => selectedFinishes.includes(f.id));
+  const inMoldFinishCost = selectedFinishData.filter(f => f.category === "in-mold").reduce((s, f) => s + f.costMidpoint, 0);
+  const postMoldPerPiece = selectedFinishData.filter(f => f.category === "post-mold").reduce((s, f) => s + f.costMidpoint, 0);
+  const totalMoldWithFinish = totalMold + inMoldFinishCost;
+  const totalPerPieceWithFinish = perPieceBase + postMoldPerPiece;
+  const totalPerUnit = Math.round((totalMoldWithFinish + totalPerPieceWithFinish * quantity) / quantity);
+  const basePerUnit  = Math.round((totalMold + perPieceBase * quantity) / quantity);
 
   const fmt = (n: number) => Math.round(n).toLocaleString("en-IN");
 
@@ -100,206 +97,258 @@ export default function ReportModal({
           </button>
         </div>
 
-            <div className="px-6 py-5 space-y-6">
+        <div className="px-6 py-5 space-y-6">
 
-              {/* Disclaimer */}
-              <div className="rounded-lg border border-[#e0a020]/40 bg-[#fffbf0] px-4 py-3">
-                <p className="text-[10px] text-[#c08010] leading-relaxed">
-                  <strong>All estimates are approximate.</strong> Actual costs vary by vendor, region, mold complexity, surface finish requirements, and part geometry. Use these figures for early-stage planning only. Always get a formal quote from a toolmaker before committing.
-                </p>
-              </div>
+          {/* Disclaimer */}
+          <div className="rounded-lg border border-[#e0a020]/40 bg-[#fffbf0] px-4 py-3">
+            <p className="text-[10px] text-[#c08010] leading-relaxed">
+              <strong>All estimates are approximate.</strong> Actual costs vary by vendor, region, mold complexity, surface finish requirements, and part geometry. Use these figures for early-stage planning only. Always get a formal quote from a toolmaker before committing.
+            </p>
+          </div>
 
-              {/* Part details */}
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9a9a9e] mb-3">Part Details</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    ["Volume", `${volumeCubicMm.toLocaleString()} mm³ (${volCm3.toFixed(2)} cm³)`],
-                    ["Bounding Box", `${x.toFixed(1)} × ${y.toFixed(1)} × ${z.toFixed(1)} mm`],
-                    ["Material", mat.label],
-                    ["Quantity", quantity.toLocaleString("en-IN") + " units"],
-                    ["Mold Type", tier.label],
-                    ["Part Weight", `${(weightKg * 1000).toFixed(1)} g`],
-                  ].map(([k, v]) => (
-                    <div key={k} className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-3 py-2">
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">{k}</p>
-                      <p className="text-xs font-bold text-[#1a1a1c]">{v}</p>
-                    </div>
-                  ))}
+          {/* Part details */}
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9a9a9e] mb-3">Part Details</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                ["Volume", `${volumeCubicMm.toLocaleString()} mm³ (${volCm3.toFixed(2)} cm³)`],
+                ["Bounding Box", `${x.toFixed(1)} × ${y.toFixed(1)} × ${z.toFixed(1)} mm`],
+                ["Material", mat.label],
+                ["Quantity", quantity.toLocaleString("en-IN") + " units"],
+                ["Mold Type", tier.label],
+                ["Part Weight", `${(weightKg * 1000).toFixed(1)} g`],
+              ].map(([k, v]) => (
+                <div key={k} className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-3 py-2">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">{k}</p>
+                  <p className="text-xs font-bold text-[#1a1a1c]">{v}</p>
                 </div>
-              </div>
-
-              {/* Mold cost breakdown */}
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9a9a9e] mb-3">Mold Cost Breakdown</p>
-                <div className="rounded-xl border border-[#e0deda] overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-[#f8f7f4] border-b border-[#e0deda]">
-                        <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Item</th>
-                        <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Basis</th>
-                        <th className="px-4 py-2.5 text-right text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Amount (INR)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#f0ede8]">
-                      <tr>
-                        <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Steel / mold block</td>
-                        <td className="px-4 py-2.5 text-[#6a6a6e]">{moldVolCm3.toFixed(0)} cm³ × {tier.weightFactor} kg/cm³ × ₹{tier.steelPricePerKg}/kg</td>
-                        <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{fmt(steelCost)}</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Machining</td>
-                        <td className="px-4 py-2.5 text-[#6a6a6e]">{tier.machiningHrs} hrs × ₹{RATE}/hr</td>
-                        <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{fmt(machCost)}</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Design &amp; setup</td>
-                        <td className="px-4 py-2.5 text-[#6a6a6e]">Fixed cost</td>
-                        <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{fmt(DESIGN_COST)}</td>
-                      </tr>
-                      <tr className="bg-[#f8f7f4]">
-                        <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Overhead (1.25×)</td>
-                        <td className="px-4 py-2.5 text-[#6a6a6e]">Applied on all above</td>
-                        <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{fmt(baseMold)}</td>
-                      </tr>
-                      {surchargeCost > 0 && (
-                        <tr className="bg-[#fff8f0]">
-                          <td className="px-4 py-2.5 text-[#c08010] font-semibold">
-                            ⚠ Undercut surcharge ({Math.round(surchargeRate * 100)}%)
-                          </td>
-                          <td className="px-4 py-2.5 text-[#9a9a9e] text-[10px]">
-                            Side-action sliders / lifters required. Approximate — varies by undercut count and depth.
-                          </td>
-                          <td className="px-4 py-2.5 text-right font-bold text-[#c08010]">₹{fmt(surchargeCost)}</td>
-                        </tr>
-                      )}
-                      <tr className="border-t-2 border-[#e0deda] bg-[#eef2fc]">
-                        <td className="px-4 py-2.5 font-black text-[#1a1a1c]">Total Mold Cost</td>
-                        <td className="px-4 py-2.5 text-[#6a6a6e] text-[10px]">One-time investment</td>
-                        <td className="px-4 py-2.5 text-right font-black text-[#3b6bca] text-sm">₹{fmt(totalMold)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Per piece breakdown */}
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9a9a9e] mb-3">Per Piece Cost Breakdown</p>
-                <div className="rounded-xl border border-[#e0deda] overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-[#f8f7f4] border-b border-[#e0deda]">
-                        <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Item</th>
-                        <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Basis</th>
-                        <th className="px-4 py-2.5 text-right text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Amount (INR)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#f0ede8]">
-                      <tr>
-                        <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Material</td>
-                        <td className="px-4 py-2.5 text-[#6a6a6e]">{(weightKg * 1000).toFixed(1)}g × ₹{mat.pricePerKg}/kg + {Math.round(discount * 100)}% qty discount</td>
-                        <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{matCost.toFixed(2)}</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Machine time</td>
-                        <td className="px-4 py-2.5 text-[#6a6a6e]">30s cycle × {efficiency.toFixed(2)} efficiency × ₹{MACHINE_RATE}/hr</td>
-                        <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{machineCost.toFixed(2)}</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Operator</td>
-                        <td className="px-4 py-2.5 text-[#6a6a6e]">₹{OPERATOR_RATE}/hr</td>
-                        <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{operatorCost.toFixed(2)}</td>
-                      </tr>
-                      <tr className="bg-[#f8f7f4]">
-                        <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Overhead + margin</td>
-                        <td className="px-4 py-2.5 text-[#6a6a6e]">1.25× overhead, 1.15× margin</td>
-                        <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{perPieceBase.toFixed(2)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Total per unit */}
-              <div className="rounded-xl border border-[#3b6bca]/20 bg-[#eef2fc] px-5 py-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-[#6a9fd8]">Total per Unit</p>
-                    <p className="text-[10px] text-[#6a6a6e] mt-0.5">Mold cost amortised across {quantity.toLocaleString("en-IN")} units</p>
-                    <p className="text-[10px] text-[#6a6a6e]">= (₹{fmt(totalMold)} + ₹{perPieceBase.toFixed(2)} × {quantity.toLocaleString()}) ÷ {quantity.toLocaleString()}</p>
-                  </div>
-                  <p className="text-2xl font-black text-[#3b6bca]">₹{fmt(totalPerUnit)}</p>
-                </div>
-              </div>
-
-              {/* Material reference table */}
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9a9a9e] mb-3">Material Reference Prices</p>
-                <div className="rounded-xl border border-[#e0deda] overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-[#f8f7f4] border-b border-[#e0deda]">
-                        <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Material</th>
-                        <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Density</th>
-                        <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Price/kg</th>
-                        <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Best for</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#f0ede8]">
-                      {Object.entries(MATERIALS).map(([key, m]) => (
-                        <tr key={key} className={material === key ? "bg-[#eef2fc]" : ""}>
-                          <td className="px-4 py-2.5 font-bold text-[#1a1a1c]">{m.label} {material === key ? "✓" : ""}</td>
-                          <td className="px-4 py-2.5 text-[#6a6a6e]">{m.density} g/cm³</td>
-                          <td className="px-4 py-2.5 text-[#6a6a6e]">₹{m.pricePerKg}</td>
-                          <td className="px-4 py-2.5 text-[#6a6a6e]">{m.notes}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Mold tier reference */}
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9a9a9e] mb-3">Mold Tier Reference</p>
-                <div className="rounded-xl border border-[#e0deda] overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-[#f8f7f4] border-b border-[#e0deda]">
-                        <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Mold Type</th>
-                        <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Shot range</th>
-                        <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Steel ₹/kg</th>
-                        <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Machining hrs</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#f0ede8]">
-                      {MOLD_TIERS.map((t) => (
-                        <tr key={t.label} className={tier.label === t.label ? "bg-[#eef2fc]" : ""}>
-                          <td className="px-4 py-2.5 font-bold text-[#1a1a1c]">{t.label} {tier.label === t.label ? "✓" : ""}</td>
-                          <td className="px-4 py-2.5 text-[#6a6a6e]">{t.shots}</td>
-                          <td className="px-4 py-2.5 text-[#6a6a6e]">₹{t.steelPricePerKg}</td>
-                          <td className="px-4 py-2.5 text-[#6a6a6e]">{t.machiningHrs} hrs</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Undercut surcharge reference */}
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9a9a9e] mb-2">Undercut Surcharge Logic</p>
-                <div className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-4 py-3 space-y-1.5 text-[11px] text-[#6a6a6e]">
-                  <p><span className="font-bold text-[#16a34a]">No undercuts</span> — No surcharge. Straight-pull mold, standard tooling cost.</p>
-                  <p><span className="font-bold text-[#c08010]">Moderate undercuts</span> — +15% on mold cost. Simple side-actions or lifters likely required.</p>
-                  <p><span className="font-bold text-[#dc2626]">High undercuts</span> — +35% on mold cost. Complex sliders, multiple side-actions, significantly higher tooling complexity.</p>
-                  <p className="mt-2 text-[10px] text-[#9a9a9e] italic">These percentages are indicative. The actual surcharge depends on the number, depth, and accessibility of undercut features. Always confirm with your toolmaker.</p>
-                </div>
-              </div>
-
+              ))}
             </div>
           </div>
+
+          {/* Mold cost breakdown */}
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9a9a9e] mb-3">Mold Cost Breakdown</p>
+            <div className="rounded-xl border border-[#e0deda] overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-[#f8f7f4] border-b border-[#e0deda]">
+                    <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Item</th>
+                    <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Basis</th>
+                    <th className="px-4 py-2.5 text-right text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Amount (INR)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#f0ede8]">
+                  <tr>
+                    <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Steel / mold block</td>
+                    <td className="px-4 py-2.5 text-[#6a6a6e]">{moldVolCm3.toFixed(0)} cm³ × {tier.weightFactor} kg/cm³ × ₹{tier.steelPricePerKg}/kg</td>
+                    <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{fmt(steelCost)}</td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Machining</td>
+                    <td className="px-4 py-2.5 text-[#6a6a6e]">{tier.machiningHrs} hrs × ₹{RATE}/hr</td>
+                    <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{fmt(machCost)}</td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Design &amp; setup</td>
+                    <td className="px-4 py-2.5 text-[#6a6a6e]">Fixed cost</td>
+                    <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{fmt(DESIGN_COST)}</td>
+                  </tr>
+                  <tr className="bg-[#f8f7f4]">
+                    <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Overhead (1.25×)</td>
+                    <td className="px-4 py-2.5 text-[#6a6a6e]">Applied on all above</td>
+                    <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{fmt(baseMold)}</td>
+                  </tr>
+                  {surchargeCost > 0 && (
+                    <tr className="bg-[#fff8f0]">
+                      <td className="px-4 py-2.5 text-[#c08010] font-semibold">⚠ Undercut surcharge ({Math.round(surchargeRate * 100)}%)</td>
+                      <td className="px-4 py-2.5 text-[#9a9a9e] text-[10px]">Side-action sliders / lifters required.</td>
+                      <td className="px-4 py-2.5 text-right font-bold text-[#c08010]">₹{fmt(surchargeCost)}</td>
+                    </tr>
+                  )}
+                  {inMoldFinishCost > 0 && selectedFinishData.filter(f => f.category === "in-mold").map(f => (
+                    <tr key={f.id} className="bg-[#f5f0ff]">
+                      <td className="px-4 py-2.5 font-semibold" style={{ color: f.accentColor }}>{f.name}</td>
+                      <td className="px-4 py-2.5 text-[#9a9a9e] text-[10px]">{f.costLabel} — midpoint estimate</td>
+                      <td className="px-4 py-2.5 text-right font-bold" style={{ color: f.accentColor }}>₹{fmt(f.costMidpoint)}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-t-2 border-[#e0deda] bg-[#eef2fc]">
+                    <td className="px-4 py-2.5 font-black text-[#1a1a1c]">Total Mold Cost</td>
+                    <td className="px-4 py-2.5 text-[#6a6a6e] text-[10px]">One-time investment{inMoldFinishCost > 0 ? " incl. finish" : ""}</td>
+                    <td className="px-4 py-2.5 text-right font-black text-[#3b6bca] text-sm">₹{fmt(totalMoldWithFinish)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Per piece breakdown */}
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9a9a9e] mb-3">Per Piece Cost Breakdown</p>
+            <div className="rounded-xl border border-[#e0deda] overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-[#f8f7f4] border-b border-[#e0deda]">
+                    <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Item</th>
+                    <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Basis</th>
+                    <th className="px-4 py-2.5 text-right text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Amount (INR)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#f0ede8]">
+                  <tr>
+                    <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Material</td>
+                    <td className="px-4 py-2.5 text-[#6a6a6e]">{(weightKg * 1000).toFixed(1)}g × ₹{mat.pricePerKg}/kg + {Math.round(discount * 100)}% qty discount</td>
+                    <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{matCost.toFixed(2)}</td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Machine time</td>
+                    <td className="px-4 py-2.5 text-[#6a6a6e]">30s cycle × {efficiency.toFixed(2)} efficiency × ₹{MACHINE_RATE}/hr</td>
+                    <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{machineCost.toFixed(2)}</td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Operator</td>
+                    <td className="px-4 py-2.5 text-[#6a6a6e]">₹{OPERATOR_RATE}/hr</td>
+                    <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{operatorCost.toFixed(2)}</td>
+                  </tr>
+                  <tr className="bg-[#f8f7f4]">
+                    <td className="px-4 py-2.5 text-[#1a1a1c] font-semibold">Overhead + margin</td>
+                    <td className="px-4 py-2.5 text-[#6a6a6e]">1.25× overhead, 1.15× margin</td>
+                    <td className="px-4 py-2.5 text-right font-bold text-[#1a1a1c]">₹{perPieceBase.toFixed(2)}</td>
+                  </tr>
+                  {postMoldPerPiece > 0 && selectedFinishData.filter(f => f.category === "post-mold").map(f => (
+                    <tr key={f.id} className="bg-[#f5f0ff]">
+                      <td className="px-4 py-2.5 font-semibold" style={{ color: f.accentColor }}>{f.name}</td>
+                      <td className="px-4 py-2.5 text-[#9a9a9e] text-[10px]">{f.costLabel} — midpoint estimate{f.leadTime ? ` · ${f.leadTime}` : ""}</td>
+                      <td className="px-4 py-2.5 text-right font-bold" style={{ color: f.accentColor }}>₹{f.costMidpoint.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Total per unit */}
+          <div className="rounded-xl border border-[#3b6bca]/20 bg-[#eef2fc] px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-[#6a9fd8]">Total per Unit</p>
+                <p className="text-[10px] text-[#6a6a6e] mt-0.5">Mold cost amortised across {quantity.toLocaleString("en-IN")} units{selectedFinishData.length > 0 ? " · incl. finishing" : ""}</p>
+                {selectedFinishData.length > 0 && (
+                  <p className="text-[10px] text-[#9a9aff] mt-0.5">Base: ₹{fmt(basePerUnit)} → with finishing: ₹{fmt(totalPerUnit)}</p>
+                )}
+              </div>
+              <p className="text-2xl font-black text-[#3b6bca]">₹{fmt(totalPerUnit)}</p>
+            </div>
+          </div>
+
+          {/* Surface finish section */}
+          {selectedFinishData.length > 0 && (
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9a9a9e] mb-3">Selected Surface Finishes</p>
+              <div className="rounded-xl border border-[#e0deda] overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-[#f8f7f4] border-b border-[#e0deda]">
+                      <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Finish</th>
+                      <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Type</th>
+                      <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Cost Basis</th>
+                      <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Lead Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#f0ede8]">
+                    {selectedFinishData.map((f, i) => (
+                      <tr key={f.id} className={i % 2 === 0 ? "bg-white" : "bg-[#f8f7f4]"}>
+                        <td className="px-4 py-2.5 font-bold text-[#1a1a1c]">
+                          {f.name}
+                          {f.grade && <span className="ml-1.5 text-[9px] font-normal text-[#9a9a9e]">{f.grade}</span>}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="rounded-full px-2 py-0.5 text-[9px] font-bold"
+                            style={{ background: f.category === "in-mold" ? "#EEF2FC" : "#F5F0FF", color: f.category === "in-mold" ? "#3B6BCA" : "#6040C8" }}>
+                            {f.category === "in-mold" ? "In-Mold" : "Post-Mold"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-[#6a6a6e]">{f.costLabel}</td>
+                        <td className="px-4 py-2.5 text-[#6a6a6e]">{f.leadTime ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-2 text-[10px] text-[#9a9a9e] italic px-1">
+                In-mold finish costs are one-time tooling additions. Post-mold costs apply per piece. Midpoint of range used for cost calculations. Always confirm with your vendor.
+              </p>
+            </div>
+          )}
+
+          {/* Material reference */}
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9a9a9e] mb-3">Material Reference Prices</p>
+            <div className="rounded-xl border border-[#e0deda] overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-[#f8f7f4] border-b border-[#e0deda]">
+                    <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Material</th>
+                    <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Density</th>
+                    <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Price/kg</th>
+                    <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Best for</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#f0ede8]">
+                  {Object.entries(MATERIALS).map(([key, m]) => (
+                    <tr key={key} className={material === key ? "bg-[#eef2fc]" : ""}>
+                      <td className="px-4 py-2.5 font-bold text-[#1a1a1c]">{m.label} {material === key ? "✓" : ""}</td>
+                      <td className="px-4 py-2.5 text-[#6a6a6e]">{m.density} g/cm³</td>
+                      <td className="px-4 py-2.5 text-[#6a6a6e]">₹{m.pricePerKg}</td>
+                      <td className="px-4 py-2.5 text-[#6a6a6e]">{m.notes}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Mold tier reference */}
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9a9a9e] mb-3">Mold Tier Reference</p>
+            <div className="rounded-xl border border-[#e0deda] overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-[#f8f7f4] border-b border-[#e0deda]">
+                    <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Mold Type</th>
+                    <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Shot range</th>
+                    <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Steel ₹/kg</th>
+                    <th className="px-4 py-2.5 text-left text-[9px] font-bold uppercase tracking-widest text-[#9a9a9e]">Machining hrs</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#f0ede8]">
+                  {MOLD_TIERS.map((t) => (
+                    <tr key={t.label} className={tier.label === t.label ? "bg-[#eef2fc]" : ""}>
+                      <td className="px-4 py-2.5 font-bold text-[#1a1a1c]">{t.label} {tier.label === t.label ? "✓" : ""}</td>
+                      <td className="px-4 py-2.5 text-[#6a6a6e]">{t.shots}</td>
+                      <td className="px-4 py-2.5 text-[#6a6a6e]">₹{t.steelPricePerKg}</td>
+                      <td className="px-4 py-2.5 text-[#6a6a6e]">{t.machiningHrs} hrs</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Undercut surcharge reference */}
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#9a9a9e] mb-2">Undercut Surcharge Logic</p>
+            <div className="rounded-lg border border-[#e0deda] bg-[#f8f7f4] px-4 py-3 space-y-1.5 text-[11px] text-[#6a6a6e]">
+              <p><span className="font-bold text-[#16a34a]">No undercuts</span> — No surcharge. Straight-pull mold, standard tooling cost.</p>
+              <p><span className="font-bold text-[#c08010]">Moderate undercuts</span> — +15% on mold cost. Simple side-actions or lifters likely required.</p>
+              <p><span className="font-bold text-[#dc2626]">High undercuts</span> — +35% on mold cost. Complex sliders, multiple side-actions, significantly higher tooling complexity.</p>
+              <p className="mt-2 text-[10px] text-[#9a9a9e] italic">These percentages are indicative. Always confirm with your toolmaker.</p>
+            </div>
+          </div>
+
         </div>
+      </div>
+    </div>
   );
 }

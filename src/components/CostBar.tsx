@@ -1,5 +1,7 @@
-import { Zap, Wrench, Package, ArrowRight } from "lucide-react";
+import { useState } from "react";
+import { Wrench, Package, ArrowRight } from "lucide-react";
 import CostInfoModal from "./CostInfoModal";
+import { ALL_FINISHES } from "./DFMFeedback";
 
 const MATERIALS: Record<string, { density: number; pricePerKg: number; label: string }> = {
   ABS:   { density: 1.05, pricePerKg: 120, label: "ABS" },
@@ -75,12 +77,14 @@ interface CostBarProps {
   onOpenReport?: () => void;
   recommendedMaterial?: string | null;
   darkMode?: boolean;
+  selectedFinishes?: string[];
 }
 
 const CostBar = ({
   volumeCubicMm, boundingBox, material = "ABS", quantity = 1000,
   hasUndercuts, undercutSeverity, onMaterialChange, onQuantityChange,
   onOpenReport, recommendedMaterial, darkMode: dm = false,
+  selectedFinishes = [],
 }: CostBarProps) => {
   const hasData = !!volumeCubicMm && !!boundingBox;
   const stepIndex = QTY_STEPS.reduce((best, val, i) => Math.abs(val - quantity) < Math.abs(QTY_STEPS[best] - quantity) ? i : best, 0);
@@ -88,8 +92,24 @@ const CostBar = ({
   const severity = hasUndercuts ? (undercutSeverity ?? "low") : "low";
   const mold = hasData ? calcMoldCost(volumeCubicMm!, boundingBox!, quantity, severity) : null;
   const perPiece = hasData ? calcPerPiece(volumeCubicMm!, material, quantity) : null;
-  const totalPerUnit = mold && perPiece ? Math.round((mold.total + perPiece * quantity) / quantity) : null;
   const machine = hasData ? getMachineSpec(volumeCubicMm!, boundingBox!) : null;
+
+  // ── Finish cost calculation ──
+  const selectedFinishData = ALL_FINISHES.filter(f => selectedFinishes.includes(f.id));
+  const inMoldFinishCost = selectedFinishData
+    .filter(f => f.category === "in-mold")
+    .reduce((sum, f) => sum + f.costMidpoint, 0);
+  const postMoldPerPieceCost = selectedFinishData
+    .filter(f => f.category === "post-mold")
+    .reduce((sum, f) => sum + f.costMidpoint, 0);
+
+  const totalMoldWithFinish = mold ? mold.total + inMoldFinishCost : null;
+  const totalPerPieceWithFinish = perPiece ? perPiece + postMoldPerPieceCost : null;
+  const totalPerUnit = totalMoldWithFinish && totalPerPieceWithFinish
+    ? Math.round((totalMoldWithFinish + totalPerPieceWithFinish * quantity) / quantity)
+    : null;
+
+  const hasFinishCost = inMoldFinishCost > 0 || postMoldPerPieceCost > 0;
 
   // Theme tokens
   const panelBg  = dm ? "#18181B" : "#FFFFFF";
@@ -98,7 +118,6 @@ const CostBar = ({
   const ink      = dm ? "#F0EFE8" : "#1A1A1C";
   const muted    = dm ? "#999"    : "#9A9A9E";
   const faint    = dm ? "#555"    : "#B0ADA8";
-  const inputBg  = dm ? "#28282C" : "#F5F4F0";
   const selectBg = dm ? "#28282C" : "#F5F4F0";
 
   if (!hasData) {
@@ -117,11 +136,9 @@ const CostBar = ({
 
   return (
     <div className="flex flex-col h-full overflow-y-auto" style={{ background: panelBg, scrollbarWidth: "none" }}>
-      {/* Blue accent bar */}
       <div style={{ height: 3, background: "#3B6BCA", flexShrink: 0 }} />
 
       <div className="flex flex-col gap-2 px-4 py-2">
-        {/* Panel label */}
         <div className="flex items-center justify-between">
           <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: muted }}>Costing</p>
           <CostInfoModal />
@@ -136,24 +153,48 @@ const CostBar = ({
           </p>
           <p className="text-[9px] mb-2" style={{ color: "#AAA" }}>
             Mold amortised · {quantity.toLocaleString("en-IN")} units
+            {hasFinishCost && <span style={{ color: "#9A9AFF" }}> · incl. finishing</span>}
           </p>
           <div className="grid grid-cols-2 gap-1.5">
             <div className="rounded-lg px-3 py-1.5" style={{ background: "#2A2A30" }}>
               <p className="text-[8px] uppercase tracking-widest mb-0.5" style={{ color: "#AAA" }}>Mold cost</p>
-              <p className="text-[13px] font-black tabular-nums" style={{ color: "#FFF" }}>₹{mold!.total.toLocaleString("en-IN")}</p>
+              <p className="text-[13px] font-black tabular-nums" style={{ color: "#FFF" }}>₹{totalMoldWithFinish!.toLocaleString("en-IN")}</p>
               <p className="text-[8px] mt-0.5" style={{ color: "#888" }}>{mold!.label}</p>
               {mold!.surcharge > 0 && (
                 <div className="inline-flex items-center mt-1 rounded px-1.5 py-0.5" style={{ background: "rgba(224,160,32,0.2)" }}>
                   <span className="text-[8px] font-bold" style={{ color: "#E0A020" }}>⚠ +{Math.round(mold!.surchargeRate * 100)}% tooling</span>
                 </div>
               )}
+              {inMoldFinishCost > 0 && (
+                <div className="inline-flex items-center mt-1 rounded px-1.5 py-0.5 ml-1" style={{ background: "rgba(154,154,255,0.2)" }}>
+                  <span className="text-[8px] font-bold" style={{ color: "#9A9AFF" }}>+₹{inMoldFinishCost.toLocaleString("en-IN")} finish</span>
+                </div>
+              )}
             </div>
             <div className="rounded-lg px-3 py-1.5" style={{ background: "#2A2A30" }}>
               <p className="text-[8px] uppercase tracking-widest mb-0.5" style={{ color: "#AAA" }}>Per piece</p>
-              <p className="text-[13px] font-black tabular-nums" style={{ color: "#FFF" }}>₹{perPiece!.toLocaleString("en-IN")}</p>
+              <p className="text-[13px] font-black tabular-nums" style={{ color: "#FFF" }}>₹{totalPerPieceWithFinish!.toLocaleString("en-IN")}</p>
               <p className="text-[8px] mt-0.5" style={{ color: "#888" }}>Excl. mold</p>
+              {postMoldPerPieceCost > 0 && (
+                <div className="inline-flex items-center mt-1 rounded px-1.5 py-0.5" style={{ background: "rgba(154,154,255,0.2)" }}>
+                  <span className="text-[8px] font-bold" style={{ color: "#9A9AFF" }}>+₹{postMoldPerPieceCost} finish</span>
+                </div>
+              )}
             </div>
           </div>
+
+          {/* Selected finishes summary */}
+          {selectedFinishData.length > 0 && (
+            <div className="mt-2 rounded-lg px-3 py-1.5" style={{ background: "rgba(154,154,255,0.1)", border: "1px solid rgba(154,154,255,0.2)" }}>
+              <p className="text-[8px] font-bold uppercase tracking-widest mb-1" style={{ color: "#9A9AFF" }}>Selected finishes</p>
+              {selectedFinishData.map(f => (
+                <p key={f.id} className="text-[9px]" style={{ color: "#CCC" }}>
+                  · {f.name} — {f.costLabel}
+                </p>
+              ))}
+              <p className="text-[8px] mt-1 italic" style={{ color: "#777" }}>Midpoint estimate used for calculation</p>
+            </div>
+          )}
         </div>
 
         <div style={{ height: 1, background: border }} />
@@ -223,7 +264,7 @@ const CostBar = ({
 
         <div style={{ height: 1, background: border }} />
 
-        {/* Mold recommendation card */}
+        {/* Mold recommendation */}
         <div className="rounded-xl px-3 py-2" style={{ border: `1px solid ${border}`, background: cardBg }}>
           <div className="flex items-center gap-2">
             <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg" style={{ background: dm ? "#1E2A3D" : "#EEF2FC" }}>
@@ -236,7 +277,7 @@ const CostBar = ({
           </div>
         </div>
 
-        {/* Machine spec card */}
+        {/* Machine spec */}
         {machine && (
           <div className="rounded-xl px-3 py-2 space-y-1.5" style={{ border: `1px solid ${border}`, background: cardBg }}>
             <div className="flex items-center gap-2">
@@ -259,7 +300,6 @@ const CostBar = ({
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
