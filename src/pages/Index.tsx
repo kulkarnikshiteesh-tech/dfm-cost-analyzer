@@ -17,6 +17,7 @@ const Index = () => {
   const [showReport, setShowReport] = useState(false);
   const [recommendedMaterial, setRecommendedMaterial] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(false);
+  const [wizardKey, setWizardKey] = useState(0);
 
   const wizardStep = !glbUrl ? 1 : !faceConfirmed ? 2 : 3;
 
@@ -38,6 +39,8 @@ const Index = () => {
   const handleStartOver = () => {
     setGlbUrl(null); setUploadGlbFilename(null); setUploadData(null);
     setAnalysisData(null); setFaceConfirmed(false); setSelectionMode(false); setShowReport(false);
+    setRecommendedMaterial(null); setMaterial("ABS"); setQuantity(1000);
+    setWizardKey(k => k + 1);
   };
 
   const canShowReport = !!(analysisData?.volume_cubic_mm && analysisData?.bounding_box_mm);
@@ -117,6 +120,7 @@ const Index = () => {
         {/* LEFT — wizard + DFM */}
         <aside className="flex w-[308px] shrink-0 flex-col overflow-hidden" style={{ background: panelBg, borderRight: `1px solid ${border}` }}>
           <WizardPanel
+            key={wizardKey}
             onUploadSuccess={handleUploadSuccess}
             onAnalysisComplete={(data) => setAnalysisData(data)}
             onMaterialChange={setMaterial}
