@@ -223,15 +223,28 @@ const CostBar = ({
 
         <div style={{ height: 1, background: border }} />
 
-        {/* Mold rec + Machine spec — compact combined card */}
-        <div className="rounded-xl px-3 py-2 space-y-1.5" style={{ border: `1px solid ${border}`, background: cardBg }}>
+        {/* Mold recommendation card */}
+        <div className="rounded-xl px-3 py-2" style={{ border: `1px solid ${border}`, background: cardBg }}>
           <div className="flex items-center gap-2">
             <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg" style={{ background: dm ? "#1E2A3D" : "#EEF2FC" }}>
               <Package className="h-3 w-3" style={{ color: "#3B6BCA" }} />
             </div>
-            <span className="text-[10px] leading-snug" style={{ color: dm ? "#C0BEBC" : "#4A4A4E" }}>{getMoldRec(quantity)}</span>
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-widest mb-0.5" style={{ color: muted }}>Mold Recommendation</p>
+              <span className="text-[10px] leading-snug" style={{ color: dm ? "#C0BEBC" : "#4A4A4E" }}>{getMoldRec(quantity)}</span>
+            </div>
           </div>
-          {machine && (
+        </div>
+
+        {/* Machine spec card */}
+        {machine && (
+          <div className="rounded-xl px-3 py-2 space-y-1.5" style={{ border: `1px solid ${border}`, background: cardBg }}>
+            <div className="flex items-center gap-2">
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg" style={{ background: dm ? "#1E2A3D" : "#EEF2FC" }}>
+                <Wrench className="h-3 w-3" style={{ color: "#3B6BCA" }} />
+              </div>
+              <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: muted }}>Machine Spec</p>
+            </div>
             <div className="grid grid-cols-3 gap-1">
               {[
                 { label: "Tonnage",  value: `${machine.tonnage}T` },
@@ -244,8 +257,8 @@ const CostBar = ({
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
       </div>
     </div>
